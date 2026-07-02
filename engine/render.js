@@ -225,16 +225,17 @@ export async function auditionVoice(spec, opts = {}) {
     const cyc = [60, 64, 67, 72, 76, 72, 67, 64];
     cyc.concat(cyc).forEach((m, i) => events.push({ t: i * 0.15, midi: m, dur: 0.2, vel: 0.72 }));
   } else {
-    // meend-showcasing raga lines for the melodic Indian voices; a plucked cycle for tanpura
-    const RAGA_SLOW  = { vel: 0.8,  notes: [[64,0,0.6],[67,0.55,0.55],[69,1.05,0.75],[67,1.75,0.5],[64,2.2,0.5],[62,2.65,0.5],[60,3.1,1.7]] };
-    const RAGA_PLUCK = { vel: 0.82, notes: [[60,0,0.5],[64,0.45,0.45],[67,0.9,0.55],[64,1.4,0.4],[69,1.8,0.65],[67,2.4,0.5],[60,2.9,1.5]] };
-    const RAGA_FAST  = { vel: 0.78, notes: [[60,0,0.28],[62,0.24,0.28],[64,0.48,0.28],[67,0.72,0.28],[69,0.96,0.3],[67,1.24,0.28],[64,1.5,0.28],[62,1.76,0.28],[60,2.0,0.55],[64,2.5,0.55],[60,3.0,1.0]] };
-    const RAGA = {
+    // timbre-specific solo lines: raga lines (meend) for the Indian voices, a
+    // plucked cycle for tanpura, and for whistle spaced short tones + one held
+    // tone (short = individually articulated, the held tone blooms vibrato).
+    const RAGA_SLOW = { vel: 0.8,  notes: [[64,0,0.6],[67,0.55,0.55],[69,1.05,0.75],[67,1.75,0.5],[64,2.2,0.5],[62,2.65,0.5],[60,3.1,1.7]] };
+    const RAGA_FAST = { vel: 0.78, notes: [[60,0,0.28],[62,0.24,0.28],[64,0.48,0.28],[67,0.72,0.28],[69,0.96,0.3],[67,1.24,0.28],[64,1.5,0.28],[62,1.76,0.28],[60,2.0,0.55],[64,2.5,0.55],[60,3.0,1.0]] };
+    const SOLO = {
       bansuri: RAGA_SLOW, sarangi: RAGA_SLOW, shehnai: RAGA_SLOW, harmonium: RAGA_SLOW,
-      sitar: RAGA_PLUCK, veena: RAGA_PLUCK,
       santoor: RAGA_FAST,
+      whistle: { vel: 0.8, notes: [[72,0,0.3],[76,0.5,0.3],[74,1.0,0.3],[79,1.5,0.3],[76,2.0,0.3],[72,2.7,2.2]] },
     };
-    const ph = RAGA[spec.timbre] ||
+    const ph = SOLO[spec.timbre] ||
       ((spec.voice === 'pad' && spec.timbre === 'tanpura')
         ? { vel: 0.9, energy: 0.7, notes: [[50,0,2.6],[55,0.62,2.6],[55,1.24,2.6],[43,1.86,2.8],[50,2.6,2.6],[55,3.22,2.6],[55,3.84,2.6],[43,4.46,2.8]] }
         : {
