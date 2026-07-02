@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fable — Autonomous Generative Synthesizer</title>
+
+    <!--
+      Fable — reactized. UI chrome is Tailwind (Play CDN) + daisyUI (light
+      theme), no build step. The whole audio + composition engine lives in
+      engine.js (a DOM-free ES module); this page is just its React skin.
+    -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!--
+      importmap: bare specifiers → CDN. `engine` is mapped to the local
+      module so app.jsx can `import * as engine from "engine"`. (Relative
+      specifiers don't resolve reliably from Babel-standalone's blob module,
+      so we go through the importmap — same trick helloworld uses for keystore.)
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@18.3.1",
+          "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+          "react-dom": "https://esm.sh/react-dom@18.3.1?deps=react@18.3.1",
+          "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1",
+          "engine": "./engine.js"
+        }
+      }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+  </head>
+  <body class="bg-base-100 text-base-content min-h-screen">
+    <div id="root">
+      <div class="min-h-screen flex items-center justify-center">
+        <span class="loading loading-dots loading-lg" aria-busy="true"></span>
+      </div>
+    </div>
+
+    <script type="text/babel" data-type="module" data-presets="react" src="./app.jsx"></script>
+  </body>
+</html>

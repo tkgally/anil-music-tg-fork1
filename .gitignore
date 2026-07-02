@@ -1,0 +1,7 @@
+# Fable is a no-build, CDN-only static site — there is nothing to install here.
+node_modules/
+.DS_Store
+*.log
+.env
+.vscode/
+.idea/
