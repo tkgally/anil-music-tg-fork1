@@ -1744,6 +1744,79 @@ export async function renderSong(params, opts = {}) {
 }
 
 /* ---------------------------------------------------------------------
+   Audition a single voice in isolation (for the /roster page). Renders a short
+   characteristic phrase through the real voice + master chain — exactly the
+   same synthesis a full render uses — and returns a playable AudioBuffer.
+     spec.voice  : 'lead' | 'counter' | 'pad' | 'bass' | 'arp' | 'perc'
+     spec.timbre : lead/pad timbre name, or the perc type
+                   (kick / snare / hat / hatOpen / shaker)
+--------------------------------------------------------------------- */
+export async function auditionVoice(spec, opts = {}) {
+  const OfflineCtx = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
+  if (!OfflineCtx) throw new Error('OfflineAudioContext unavailable');
+  const sr = opts.sampleRate || RENDER_SR;
+  const seed = opts.seed || 7;
+  const revSec = opts.reverbSeconds != null ? opts.reverbSeconds : 2.4;
+
+  // demo params: full mixes so the chosen bus is audible, a little space
+  const P = {
+    humanity: 0.32,
+    leadTimbre: spec.timbre || 'glass',
+    padTimbre: spec.timbre || 'warm',
+    mix: { lead: 0.85, counter: 0.85, pad: 0.8, arp: 0.82, bass: 0.85, perc: 0.85 },
+    reverb: 0.4, echo: 0.3, master: 0.85, seed,
+  };
+
+  // a short, characteristic phrase per voice
+  const events = [];
+  if (spec.voice === 'perc') {
+    const type = spec.timbre || 'kick';
+    const grid = {
+      kick: { n: 4, step: 0.45 }, snare: { n: 4, step: 0.5 }, hat: { n: 8, step: 0.24 },
+      hatOpen: { n: 4, step: 0.42 }, shaker: { n: 8, step: 0.22 },
+    }[type] || { n: 4, step: 0.4 };
+    for (let i = 0; i < grid.n; i++) events.push({ t: i * grid.step, type, vel: i % 2 === 0 ? 0.95 : 0.68 });
+  } else if (spec.voice === 'arp') {
+    const cyc = [60, 64, 67, 72, 76, 72, 67, 64];
+    cyc.concat(cyc).forEach((m, i) => events.push({ t: i * 0.15, midi: m, dur: 0.2, vel: 0.72 }));
+  } else {
+    const ph = {
+      lead:    { vel: 0.82, notes: [[67, 0, 0.45], [71, 0.4, 0.45], [74, 0.8, 0.45], [79, 1.2, 0.4], [76, 1.6, 0.4], [72, 2.0, 1.6]] },
+      counter: { vel: 0.80, notes: [[62, 0, 0.42], [65, 0.36, 0.42], [69, 0.72, 0.42], [67, 1.08, 0.42], [64, 1.44, 1.1]] },
+      pad:     { vel: 0.90, energy: 0.7, notes: [[55, 0, 3.0], [62, 0.05, 3.0], [67, 0.1, 3.0], [71, 0.15, 3.0]] },
+      bass:    { vel: 0.85, notes: [[40, 0, 0.4], [40, 0.45, 0.4], [45, 0.9, 0.4], [43, 1.35, 0.4], [40, 1.8, 0.7]] },
+    }[spec.voice];
+    if (!ph) throw new Error('unknown voice ' + spec.voice);
+    for (const [midi, t, dur] of ph.notes) events.push({ t, midi, dur, vel: ph.vel, energy: ph.energy });
+  }
+
+  let maxEnd = 0;
+  for (const e of events) maxEnd = Math.max(maxEnd, (e.t || 0) + (e.dur || 0.3));
+  const len = Math.max(1, Math.ceil((maxEnd + revSec + 0.4) * sr));
+  const off = new OfflineCtx(2, len, sr);
+
+  const prevParams = _params;
+  _params = P; _audioSeed = seed; _reverbSeconds = revSec; _reverbMono = false; _fast = false;
+  buildGraph(off);
+  nodes.master.gain.setValueAtTime(Math.pow(P.master, 1.6), 0);
+
+  for (const e of events) {
+    if (spec.voice === 'perc') { playPerc(e.t, e.type, e.vel); continue; }
+    const freq = midiToFreq(e.midi);
+    if (spec.voice === 'lead') playLead(e.t, freq, e.dur, e.vel, P, noteRnd(seed, e.t, e.midi));
+    else if (spec.voice === 'counter') playCounter(e.t, freq, e.dur, e.vel);
+    else if (spec.voice === 'pad') playPad(e.t, freq, e.dur, e.vel, P, e.energy != null ? e.energy : 0.6);
+    else if (spec.voice === 'bass') playBass(e.t, freq, e.dur, e.vel);
+    else if (spec.voice === 'arp') playArp(e.t, freq, e.dur, e.vel);
+  }
+
+  const buf = await off.startRendering();
+  ctx = null; nodes = null; noiseBuf = null;
+  _params = prevParams;
+  return buf;
+}
+
+/* ---------------------------------------------------------------------
    Encoding — the rendered buffer -> a downloadable/playable Blob.
      mp3   : lamejs (pure JS, faster than realtime)
      webm  : MediaRecorder, audio/webm;codecs=opus (real-time)

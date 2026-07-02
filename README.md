@@ -98,6 +98,12 @@ Routing is hash-based (works on any static host):
   it), or hand-edit it. Same seed + same settings = the same piece.
 - `#/about` — a real second route; browser back/forward moves between it and
   the studio.
+- `#/roster` — the **voice roster**: every instrument Fable can synthesize,
+  grouped (lead / pad / rhythm / percussion). Tap a card to hear a short
+  characteristic phrase on that voice (tap again to stop). It uses
+  `engine.auditionVoice({ voice, timbre })`, which renders the phrase through
+  the *exact* same voice + master chain a full render uses — so it's a faithful
+  preview, not a separate mock. This is the palette we grow when adding voices.
 
 `space` toggles play/stop. Everything can be tweaked while it plays.
 

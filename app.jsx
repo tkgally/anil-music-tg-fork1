@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   Link as LinkIcon,
   Wand2,
+  AudioLines,
 } from "https://esm.sh/lucide-react@0.460.0?external=react";
 import * as engine from "engine";
 
@@ -176,7 +177,7 @@ function parseHash() {
   const hash = location.hash.replace(/^#/, "");
   const [path, queryStr = ""] = hash.split("?");
   const segs = path.split("/").filter(Boolean);
-  const route = segs[0] === "about" ? "about" : "song";
+  const route = segs[0] === "about" ? "about" : segs[0] === "roster" ? "roster" : "song";
   const seedSeg = segs[0] === "song" ? segs[1] : null;
   const q = new URLSearchParams(queryStr);
   const params = { ...DEFAULTS };
@@ -421,7 +422,8 @@ function Transport({
           <h1 className="text-lg font-bold tracking-[0.4em] bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">FABLE</h1>
           <p className="text-[9px] tracking-[0.18em] uppercase text-base-content/50 mt-1">autonomous music synthesizer</p>
         </div>
-        <a href="#/about" className="btn btn-ghost btn-xs btn-square ml-auto" data-help="About Fable"><Info size={15} /></a>
+        <a href="#/roster" className="btn btn-ghost btn-xs btn-square ml-auto" data-help="Voice roster — hear every instrument"><AudioLines size={15} /></a>
+        <a href="#/about" className="btn btn-ghost btn-xs btn-square" data-help="About Fable"><Info size={15} /></a>
       </div>
 
       {/* format + generate */}
@@ -657,6 +659,135 @@ function Studio({ params, setParams, seed, setSeed }) {
 }
 
 /* ---------------------------------------------------------------------
+   Voice roster — hear every existing instrument on its own (#/roster)
+--------------------------------------------------------------------- */
+const ROSTER = [
+  {
+    group: "Lead voices",
+    blurb: "The main melodic line — pick one as the lead in the studio.",
+    items: [
+      { id: "lead-glass",  voice: "lead", timbre: "glass",  name: "Glass",  tag: "FM bell",        desc: "Bright metallic bell with a glassy shimmer (FM synthesis)." },
+      { id: "lead-reed",   voice: "lead", timbre: "reed",   name: "Reed",   tag: "filtered saw",   desc: "A woody, reedy tone — sawtooth through a swept lowpass, with vibrato." },
+      { id: "lead-breath", voice: "lead", timbre: "breath", name: "Breath", tag: "flute-ish",      desc: "Airy and hollow — twin oscillators plus breath noise and vibrato." },
+      { id: "lead-pluck",  voice: "lead", timbre: "pluck",  name: "Pluck",  tag: "string model",   desc: "A physically-modelled plucked string (Karplus–Strong)." },
+      { id: "lead-keys",   voice: "lead", timbre: "keys",   name: "Keys",   tag: "electric piano", desc: "An FM electric piano with a bell-like tine — a Rhodes." },
+      { id: "lead-brass",  voice: "lead", timbre: "brass",  name: "Brass",  tag: "swelling saw",   desc: "Detuned saws that swell in with a filter sweep — a brass section." },
+      { id: "lead-organ",  voice: "lead", timbre: "organ",  name: "Organ",  tag: "drawbars",       desc: "Additive drawbar organ — stacked harmonic partials." },
+      { id: "lead-pure",   voice: "lead", timbre: "pure",   name: "Pure",   tag: "sine",           desc: "A clean sine with gentle vibrato — the simplest voice." },
+    ],
+  },
+  {
+    group: "Pad voices",
+    blurb: "Sustained harmony under everything — pick one as the pad in the studio.",
+    items: [
+      { id: "pad-warm",    voice: "pad", timbre: "warm",    name: "Warm",    tag: "analog",         desc: "Three detuned saws — a warm, wide analog wash." },
+      { id: "pad-halo",    voice: "pad", timbre: "halo",    name: "Halo",    tag: "glass air",      desc: "Triangle plus an octave shimmer — glassy air." },
+      { id: "pad-choir",   voice: "pad", timbre: "choir",   name: "Choir",   tag: "vowel formants", desc: "Saws shaped by vowel formants — an ‘aah’ choir." },
+      { id: "pad-strings", voice: "pad", timbre: "strings", name: "Strings", tag: "ensemble",       desc: "Four detuned saws with a slow bowing LFO — a string section." },
+      { id: "pad-hollow",  voice: "pad", timbre: "hollow",  name: "Hollow",  tag: "woody dark",     desc: "Square plus triangle — dark, woody and hollow." },
+    ],
+  },
+  {
+    group: "Rhythm & inner voices",
+    blurb: "The supporting cast, shaped by the mix sliders.",
+    items: [
+      { id: "bass",    voice: "bass",    name: "Bass",         tag: "sub + saw",       desc: "A sub sine plus a saw through a lowpass — the foundation." },
+      { id: "arp",     voice: "arp",     name: "Arpeggio",     tag: "resonant square", desc: "A rippling broken-chord pattern on a resonant square." },
+      { id: "counter", voice: "counter", name: "Counterpoint", tag: "triangle",        desc: "A second voice that sings against the lead." },
+    ],
+  },
+  {
+    group: "Percussion",
+    blurb: "Synthesized drums — noise plus tuned tones. In a piece they only enter with enough energy.",
+    items: [
+      { id: "perc-kick",    voice: "perc", timbre: "kick",    name: "Kick",     tag: "pitched thump",    desc: "A pitch-dropping sine with a noise click." },
+      { id: "perc-snare",   voice: "perc", timbre: "snare",   name: "Snare",    tag: "noise + tone",     desc: "A filtered noise burst over a short tuned tone." },
+      { id: "perc-hat",     voice: "perc", timbre: "hat",     name: "Hi-hat",   tag: "closed",          desc: "A short, bright tick of highpassed noise." },
+      { id: "perc-hatOpen", voice: "perc", timbre: "hatOpen", name: "Open hat", tag: "sizzle",          desc: "The same, held longer — an open sizzle." },
+      { id: "perc-shaker",  voice: "perc", timbre: "shaker",  name: "Shaker",   tag: "bandpassed noise", desc: "A soft, breathy shaker — bandpassed noise." },
+    ],
+  },
+];
+
+function Roster({ backHash }) {
+  const acRef = useRef(null);
+  const srcRef = useRef(null);
+  const [busyId, setBusyId] = useState(null);
+  const [playingId, setPlayingId] = useState(null);
+
+  function stopCurrent() {
+    if (srcRef.current) { try { srcRef.current.onended = null; srcRef.current.stop(); } catch (e) {} srcRef.current = null; }
+    setPlayingId(null);
+  }
+  useEffect(() => () => { stopCurrent(); if (acRef.current) acRef.current.close().catch(() => {}); }, []);
+
+  async function play(item) {
+    if (playingId === item.id) { stopCurrent(); return; }   // tap again to stop
+    let ac = acRef.current;
+    if (!ac) ac = acRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    await ac.resume();
+    stopCurrent();
+    setBusyId(item.id);
+    let buf;
+    try {
+      buf = await engine.auditionVoice({ voice: item.voice, timbre: item.timbre }, { sampleRate: ac.sampleRate });
+    } catch (e) { console.error(e); setBusyId(null); return; }
+    setBusyId(null);
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    src.connect(ac.destination);
+    src.onended = () => { if (srcRef.current === src) { srcRef.current = null; setPlayingId(null); } };
+    srcRef.current = src;
+    setPlayingId(item.id);
+    src.start();
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-5 py-8">
+      <a href={backHash} className="btn btn-ghost btn-sm gap-1.5 mb-5"><ArrowLeft size={15} /> Back to the studio</a>
+      <div className="flex items-center gap-3 mb-2">
+        <AudioLines size={24} className="text-primary" />
+        <h1 className="text-2xl font-bold tracking-[0.3em] bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">VOICE ROSTER</h1>
+      </div>
+      <p className="text-sm text-base-content/60 mb-8 max-w-2xl">
+        Every instrument Fable can synthesize today — no samples, all Web Audio. Tap a card to hear a short
+        phrase on that voice (tap again to stop). This is the palette we’ll grow next.
+      </p>
+
+      {ROSTER.map((section) => (
+        <section key={section.group} className="mb-9">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-base-content/50 mb-1">{section.group}</h2>
+          <p className="text-xs text-base-content/40 mb-3">{section.blurb}</p>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {section.items.map((item) => {
+              const isBusy = busyId === item.id;
+              const isPlaying = playingId === item.id;
+              return (
+                <button key={item.id} onClick={() => play(item)}
+                  data-state={isBusy ? "busy" : isPlaying ? "playing" : "idle"}
+                  aria-pressed={isPlaying}
+                  className={`text-left rounded-xl border p-3 transition-colors ${isPlaying ? "border-primary bg-primary/5" : "border-base-300 bg-base-100 hover:border-primary/50 hover:bg-base-200/40"}`}>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${isPlaying ? "bg-primary text-primary-content" : "bg-base-200 text-base-content/70"}`}>
+                      {isBusy ? <span className="loading loading-spinner loading-xs" /> : isPlaying ? <Pause size={15} /> : <Play size={15} />}
+                    </span>
+                    <div className="flex items-baseline gap-1.5 min-w-0">
+                      <span className="font-semibold text-sm">{item.name}</span>
+                      <span className="text-[10px] uppercase tracking-wide text-base-content/40 truncate">{item.tag}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-base-content/55 mt-2 leading-snug">{item.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------
    About page
 --------------------------------------------------------------------- */
 function About({ backHash }) {
@@ -727,6 +858,8 @@ function App() {
       <Tooltips />
       {route === "about"
         ? <About backHash={songHash(seed, params)} />
+        : route === "roster"
+        ? <Roster backHash={songHash(seed, params)} />
         : <Studio params={params} setParams={setParams} seed={seed} setSeed={setSeed} />}
     </>
   );
