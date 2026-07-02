@@ -124,7 +124,7 @@ function mountLive(tests) {
   const GLYPH = { pend: "○", run: "▶", pass: "✓", fail: "✗", skip: "–" };
   const total = tests.length;
   const wrap = document.createElement("div");
-  wrap.style.cssText = "font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;max-width:920px;margin:8px 16px 48px";
+  wrap.style.cssText = "font:13px/1.0 ui-monospace,SFMono-Regular,Menlo,monospace;max-width:920px;margin:8px 16px 48px";
   const hd = document.createElement("div");
   hd.style.cssText = "font-weight:600;margin-bottom:8px;color:" + COL.run;
   hd.textContent = "▶ running… 0/" + total;
