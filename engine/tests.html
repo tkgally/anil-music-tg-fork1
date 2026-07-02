@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fable engine tests</title>
+<!--
+  Run the whole engine test suite in a browser (needed for the Web Audio suites).
+  Serve the repo and open:  /engine/tests.html
+  Append ?record to regenerate the golden baselines.
+
+  Static imports (no top-level await) so every *-test.js registers its cases
+  synchronously before testkit's auto-run fires on the next microtask.
+-->
+<body style="font-family:ui-sans-serif,system-ui;margin:0;background:#fff;color:#111">
+<h3 style="padding:12px 16px 0">Fable engine tests</h3>
+<script type="module">
+  import "./composer-test.js";
+  import "./viz-test.js";
+  import "./render-test.js";
+  import "./voices-test.js";
+  import "./encoders-test.js";
+</script>
+</body>
