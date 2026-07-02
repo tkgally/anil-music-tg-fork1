@@ -112,8 +112,46 @@ Routing is hash-based (works on any static host):
 | File | What it is |
 |------|-----------|
 | `index.html` | React + daisyUI (light theme) CDN shell. Maps `engine` in the importmap. |
-| `engine.js`  | The synth: composition (`Composer`) + Web Audio instruments + scheduler + canvas viz. **DOM-free ES module** — params in via `setParams`, readouts/clock/play-state out via `setCallbacks`, canvas via `attachCanvas`. This is the original engine, unchanged except its I/O boundary. |
+| `engine/`    | The synth, split into focused ES modules (see below). **DOM-free.** |
 | `app.jsx`    | React UI: transport, control panels, meters, the dark viz "stage", tooltips, and the hash router. |
+
+### The `engine/` modules
+
+`engine/engine.js` is a thin **barrel** that re-exports the public API, so the
+importmap and `app.jsx` never change. Internals:
+
+| Module | Responsibility |
+|--------|----------------|
+| `composer.js` | `composeSong` + the `Composer` — pure, deterministic composition. |
+| `render.js` | `renderSong` / `renderSegment` / `auditionVoice` — offline audio core. |
+| `state.js` | the one shared audio-state object `A` (ctx, nodes, params, flags). |
+| `graph.js` | master chain, reverb/echo, per-voice buses, mixes. |
+| `voices.js` | the instruments (`play*`) — **add new voices here.** |
+| `encoders.js` | `bufferToWav` / `encodeSong` (+ opus/mp3/webm codecs & muxers). |
+| `viz.js` | `fitCanvas` / `drawViz` / `cueAt`. |
+| `rng.js` / `theory.js` | seeded RNG + math; scales, meters, arcs, rhythm. |
+
+The split was done under a **golden-master safety net** (see Tests): the
+composition and audio outputs are byte/fingerprint-identical to the pre-split
+monolith.
+
+## Tests
+
+A tiny zero-dependency harness (`engine/testkit.js`) — no framework — that runs
+under **Node** or in a **browser** (`test.browser(...)` cases auto-skip without
+Web Audio). Convention: `foo.js` is tested by `foo-test.js`.
+
+```bash
+node engine/tests.mjs          # pure suites (rng, theory, composer, wav, cueAt)
+# browser suites (render, voices, encode): serve the repo, open engine/tests.html
+# regenerate baselines:  node engine/composer-test.js --record  /  tests.html?record
+```
+
+- **composer** is locked bit-exact (rounded 1e-6 so V8 `Math.*` ULP noise is
+  cross-environment stable).
+- **render / voices** compare a perceptual fingerprint (peak / RMS / 16-window
+  RMS envelope) within tolerance, because Web Audio's offline render is *not*
+  bit-reproducible (echo/convolver tails vary ~1e-9 run-to-run).
 
 ## Reactization notes
 
