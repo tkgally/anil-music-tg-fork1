@@ -663,6 +663,16 @@ function Studio({ params, setParams, seed, setSeed }) {
 --------------------------------------------------------------------- */
 const ROSTER = [
   {
+    group: "Indian instruments",
+    blurb: "New — synthesized from the same primitives, with meend (pitch glides) and jivari buzz.",
+    items: [
+      { id: "in-bansuri", voice: "lead", timbre: "bansuri", name: "Bansuri", tag: "bamboo flute",    desc: "Breathy bamboo flute — a near-pure tone with an airy chiff, blooming vibrato, and a meend scoop into each note." },
+      { id: "in-sitar",   voice: "lead", timbre: "sitar",   name: "Sitar",   tag: "plucked + jivari", desc: "A bright plucked string that rings and twangs, with meend bends and the buzzing jivari shimmer." },
+      { id: "in-tanpura", voice: "pad",  timbre: "tanpura", name: "Tanpura", tag: "drone",           desc: "The cyclic four-string drone (Pa–Sa–Sa–Sa) — each string a rich plucked harmonic stack with jivari buzz." },
+      { id: "in-tabla",   voice: "perc", timbre: "tabla",   name: "Tabla",   tag: "teental theka",    desc: "Dayan + bayan — a 16-beat teental groove of na / tin / ge strokes, with the bayan’s sliding gham." },
+    ],
+  },
+  {
     group: "Lead voices",
     blurb: "The main melodic line — pick one as the lead in the studio.",
     items: [

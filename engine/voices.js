@@ -191,6 +191,75 @@ export function playLead(t, freq, dur, vel, P, rnd) {
     vib.start(t); vib.stop(t + dur + 0.1);
     g.connect(bus); g.connect(A.nodes.echoIn);
     scrap(parts[0], [g, vib, vibG, ...parts.slice(1)]);
+  } else if (timbre === 'bansuri') { // bamboo flute: near-pure tone + breath chiff + late vibrato + meend
+    const scoop = freq * 0.945;                        // start ~1 semitone flat and slide up (meend)
+    const glide = Math.min(0.13, dur * 0.3);
+    const o1 = A.ctx.createOscillator();
+    o1.type = 'sine'; o1.detune.value = detune;
+    o1.frequency.setValueAtTime(scoop, t);
+    o1.frequency.exponentialRampToValueAtTime(freq, t + glide);
+    const o2 = A.ctx.createOscillator();               // weak 2nd harmonic for body
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(scoop * 2, t);
+    o2.frequency.exponentialRampToValueAtTime(freq * 2, t + glide);
+    const o2g = A.ctx.createGain(); o2g.gain.value = 0.14;
+    const vib = A.ctx.createOscillator(); vib.frequency.value = 5.4;
+    const vibG = A.ctx.createGain();
+    vibG.gain.setValueAtTime(0, t);
+    vibG.gain.linearRampToValueAtTime(6, t + Math.min(0.6, dur * 0.55));
+    vib.connect(vibG); vibG.connect(o1.detune); vibG.connect(o2.detune);
+    const breath = noiseSource(t, dur + 0.15);          // airy chiff, strongest at the attack
+    const bp = A.ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = freq * 2.2; bp.Q.value = 3.5;
+    const bg = A.ctx.createGain();
+    bg.gain.setValueAtTime(0.11 * vel, t);
+    bg.gain.exponentialRampToValueAtTime(0.03 * vel + 0.0001, t + 0.14);
+    breath.connect(bp); bp.connect(bg);
+    const g = A.ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.17 * vel, t + 0.06);
+    g.gain.setValueAtTime(0.17 * vel, t + Math.max(0.07, dur - 0.08));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.14);
+    o1.connect(g); o2.connect(o2g); o2g.connect(g); bg.connect(g);
+    g.connect(bus); g.connect(A.nodes.echoIn);
+    o1.start(t); o2.start(t); vib.start(t);
+    o1.stop(t + dur + 0.2); o2.stop(t + dur + 0.2); vib.stop(t + dur + 0.2);
+    scrap(o1, [g, o2, o2g, vib, vibG, bp, bg]);
+  } else if (timbre === 'sitar') { // plucked, buzzy, long-ringing; meend + jivari shimmer
+    const scoop = freq * 0.94;
+    const glide = Math.min(0.1, dur * 0.28);
+    const o1 = A.ctx.createOscillator();
+    o1.type = 'sawtooth'; o1.detune.value = detune;
+    o1.frequency.setValueAtTime(scoop, t);
+    o1.frequency.exponentialRampToValueAtTime(freq, t + glide);
+    const o2 = A.ctx.createOscillator();
+    o2.type = 'sawtooth'; o2.detune.value = detune + 8;
+    o2.frequency.setValueAtTime(scoop, t);
+    o2.frequency.exponentialRampToValueAtTime(freq, t + glide);
+    const bp = A.ctx.createBiquadFilter();              // twang: bandpass opens on the pluck, then closes
+    bp.type = 'bandpass'; bp.Q.value = 3.2;
+    bp.frequency.setValueAtTime(freq * 6, t);
+    bp.frequency.exponentialRampToValueAtTime(Math.max(400, freq * 1.5), t + Math.max(0.2, dur * 0.6));
+    const buzz = A.ctx.createOscillator();              // jivari: bright partial fluttered by a fast tremolo
+    buzz.type = 'triangle';
+    buzz.frequency.setValueAtTime(scoop * 4, t);
+    buzz.frequency.exponentialRampToValueAtTime(freq * 4, t + glide);
+    const buzzG = A.ctx.createGain(); buzzG.gain.value = 0.05 * vel;
+    const trem = A.ctx.createOscillator(); trem.frequency.value = 33;
+    const tremG = A.ctx.createGain(); tremG.gain.value = 0.04 * vel;
+    trem.connect(tremG); tremG.connect(buzzG.gain);
+    buzz.connect(buzzG);
+    const g = A.ctx.createGain();                       // pluck: sharp attack, long ring
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.27 * vel, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.07 * vel + 0.0001, t + Math.max(0.25, dur * 0.7));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.5);
+    o1.connect(bp); o2.connect(bp); bp.connect(g); buzzG.connect(g);
+    g.connect(bus); g.connect(A.nodes.echoIn);
+    const stop = t + dur + 0.6;
+    o1.start(t); o2.start(t); buzz.start(t); trem.start(t);
+    o1.stop(stop); o2.stop(stop); buzz.stop(stop); trem.stop(stop);
+    scrap(o1, [g, o2, bp, buzz, buzzG, trem, tremG]);
   } else { // pure sine
     const o = A.ctx.createOscillator();
     o.frequency.value = freq; o.detune.value = detune;
@@ -239,7 +308,7 @@ export function playCounter(t, freq, dur, vel) {
 export function playPad(t, freq, dur, vel, P, energy) {
   const bus = A.nodes.buses.pad;
   const timbre = P.padTimbre;
-  const levels = { warm: 0.052, halo: 0.052, choir: 0.06, strings: 0.042, hollow: 0.055 };
+  const levels = { warm: 0.052, halo: 0.052, choir: 0.06, strings: 0.042, hollow: 0.055, tanpura: 0.05 };
   const level = (levels[timbre] || 0.05) * vel;
   const g = A.ctx.createGain();
   const atk = (timbre === 'strings')
@@ -321,6 +390,28 @@ export function playPad(t, freq, dur, vel, P, energy) {
       bow.connect(bowG); bowG.connect(lp.frequency);
       oscs.push(bow); extras.push(bowG);
     }
+  } else if (timbre === 'tanpura') { // plucked drone strings + jivari buzz (overrides the pad envelope)
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(level * 4.2, t + 0.008);         // pluck attack
+    g.gain.exponentialRampToValueAtTime(level * 0.9, t + dur * 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.2);     // long ring
+    lp.frequency.value = 2600;
+    for (const [ratio, amp, det] of [[1, 0.5, 0], [2, 0.26, 0], [2.997, 0.18, 5], [4, 0.1, 0]]) {
+      const o = A.ctx.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = freq * ratio; o.detune.value = det;
+      const og = A.ctx.createGain(); og.gain.value = amp;
+      o.connect(og); og.connect(lp);
+      oscs.push(o); extras.push(og);
+    }
+    const buzz = A.ctx.createOscillator(); buzz.type = 'triangle'; buzz.frequency.value = freq * 5;
+    const buzzG = A.ctx.createGain(); buzzG.gain.value = 0.05 * vel;
+    const trem = A.ctx.createOscillator(); trem.frequency.value = 22;
+    const tremG = A.ctx.createGain(); tremG.gain.value = 0.045 * vel;
+    trem.connect(tremG); tremG.connect(buzzG.gain);
+    buzz.connect(buzzG); buzzG.connect(lp);
+    lp.connect(g);
+    oscs.push(buzz, trem); extras.push(lp, buzzG, tremG);
   } else { // hollow
     lp.frequency.value = 520 + energy * 1500;
     const o1 = A.ctx.createOscillator();
@@ -436,6 +527,38 @@ export function playPerc(t, type, vel) {
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
     n.connect(bp); bp.connect(g); g.connect(bus);
     scrap(n, [bp, g]);
+  } else if (type === 'tablaGe') { // bayan (low): resonant tone with a downward "gham" slide
+    const o = A.ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(72, t + 0.18);
+    const g = A.ctx.createGain();
+    g.gain.setValueAtTime(0.5 * vel, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+    o.connect(g); g.connect(bus);
+    o.start(t); o.stop(t + 0.45);
+    scrap(o, [g]);
+  } else if (type === 'tablaNa' || type === 'tablaTin') { // dayan (high): tuned ringing stroke
+    const open = type === 'tablaTin';
+    const base = 300;                                   // dayan tuned near Sa
+    const o1 = A.ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = base;
+    const o2 = A.ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = base * 2.76; // inharmonic drum partial
+    const o2g = A.ctx.createGain(); o2g.gain.value = 0.35;
+    const dec = open ? 0.5 : 0.13;                      // tin rings open; na is damped
+    const g = A.ctx.createGain();
+    g.gain.setValueAtTime(0.34 * vel, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dec);
+    o1.connect(g); o2.connect(o2g); o2g.connect(g);
+    const click = noiseSource(t, 0.01);                 // sharp finger attack
+    const hp = A.ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2600;
+    const cg = A.ctx.createGain();
+    cg.gain.setValueAtTime(0.16 * vel, t);
+    cg.gain.linearRampToValueAtTime(0, t + 0.012);
+    click.connect(hp); hp.connect(cg); cg.connect(g);
+    g.connect(bus);
+    o1.start(t); o2.start(t);
+    o1.stop(t + dec + 0.05); o2.stop(t + dec + 0.05);
+    scrap(o1, [g, o2, o2g]); scrap(click, [hp, cg]);
   }
 }
 
