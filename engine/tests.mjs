@@ -3,6 +3,8 @@
 // cases register before testkit's single auto-run.
 //   node engine/tests.mjs            run pure suites (audio skipped)
 //   node engine/tests.mjs --record   re-record the Node-recordable goldens
+import "./rng-test.js";
+import "./theory-test.js";
 import "./composer-test.js";
 import "./viz-test.js";
 import "./encoders-test.js";
