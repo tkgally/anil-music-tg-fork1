@@ -225,41 +225,206 @@ export function playLead(t, freq, dur, vel, P, rnd) {
     o1.start(t); o2.start(t); vib.start(t);
     o1.stop(t + dur + 0.2); o2.stop(t + dur + 0.2); vib.stop(t + dur + 0.2);
     scrap(o1, [g, o2, o2g, vib, vibG, bp, bg]);
-  } else if (timbre === 'sitar') { // plucked, buzzy, long-ringing; meend + jivari shimmer
+  } else if (timbre === 'sitar') { // Karplus-Strong string: bright twang + meend bend + jivari buzz
     const scoop = freq * 0.94;
-    const glide = Math.min(0.1, dur * 0.28);
+    const glide = Math.min(0.12, dur * 0.3);
+    const burst = noiseSource(t, Math.min(0.06, 3 / freq + 0.006));   // pluck excitation
+    const dl = A.ctx.createDelay(0.2);
+    dl.delayTime.setValueAtTime(1 / scoop, t);
+    dl.delayTime.exponentialRampToValueAtTime(1 / freq, t + glide);   // meend: the pitch slides up into the note
+    const lp = A.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = clamp(freq * 14, 2600, 13000);   // bright loop -> lively, ringing twang
+    lp.Q.value = -3;                                       // no resonance peak -> feedback loop stays stable
+    const fbg = A.ctx.createGain();
+    fbg.gain.value = clamp(0.982 - freq / 26000, 0.9, 0.982);   // high feedback -> long sustain
+    burst.connect(dl); dl.connect(lp); lp.connect(fbg); fbg.connect(dl);
+    // jivari: soft-clip the string into sustained buzzing harmonics, bandpassed and rattling
+    const ws = A.ctx.createWaveShaper();
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; curve[i] = Math.tanh(4 * x); }
+    ws.curve = curve;
+    const bz = A.ctx.createBiquadFilter();
+    bz.type = 'bandpass'; bz.frequency.value = clamp(freq * 3.5, 900, 6000); bz.Q.value = 2.4;
+    const bzMix = A.ctx.createGain(); bzMix.gain.value = 0.5 * vel;
+    const rattle = A.ctx.createOscillator(); rattle.frequency.value = 62;   // the fast buzzing flutter
+    const rattleG = A.ctx.createGain(); rattleG.gain.value = 0.3 * vel;
+    rattle.connect(rattleG); rattleG.connect(bzMix.gain);
+    lp.connect(ws); ws.connect(bz); bz.connect(bzMix);
+    const g = A.ctx.createGain();                        // pluck envelope: instant attack, long ring
+    g.gain.setValueAtTime(0.32 * vel, t);
+    g.gain.setValueAtTime(0.32 * vel, t + Math.max(0.05, dur));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.6);
+    lp.connect(g); bzMix.connect(g);
+    g.connect(bus); g.connect(A.nodes.echoIn);
+    rattle.start(t); rattle.stop(t + dur + 0.7);
+    const ms = (t - A.ctx.currentTime + dur + 1.1) * 1000;
+    setTimeout(() => { for (const n of [dl, lp, fbg, ws, bz, bzMix, rattleG, g]) { try { n.disconnect(); } catch (e) {} } }, Math.max(50, ms));
+  } else if (timbre === 'whistle') { // human whistle: near-pure tone, faint air, wide vibrato, gentle portamento
+    const scoop = freq * 0.96;
+    const glide = Math.min(0.09, dur * 0.25);
+    const o = A.ctx.createOscillator();
+    o.type = 'sine'; o.detune.value = detune;
+    o.frequency.setValueAtTime(scoop, t);
+    o.frequency.exponentialRampToValueAtTime(freq, t + glide);
+    const o2 = A.ctx.createOscillator();                 // a whisper of 2nd harmonic for shape
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(scoop * 2, t);
+    o2.frequency.exponentialRampToValueAtTime(freq * 2, t + glide);
+    const o2g = A.ctx.createGain(); o2g.gain.value = 0.06;
+    const vib = A.ctx.createOscillator(); vib.frequency.value = 5.8;
+    const vibG = A.ctx.createGain();
+    vibG.gain.setValueAtTime(0, t);
+    vibG.gain.linearRampToValueAtTime(9, t + Math.min(0.5, dur * 0.5));
+    vib.connect(vibG); vibG.connect(o.detune); vibG.connect(o2.detune);
+    const air = noiseSource(t, dur + 0.1);               // faint breath around the pitch
+    const bp = A.ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = freq * 1.5; bp.Q.value = 8;
+    const ag = A.ctx.createGain(); ag.gain.value = 0.02 * vel;
+    air.connect(bp); bp.connect(ag);
+    const g = A.ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.2 * vel, t + 0.04);
+    g.gain.setValueAtTime(0.2 * vel, t + Math.max(0.05, dur - 0.06));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.12);
+    o.connect(g); o2.connect(o2g); o2g.connect(g); ag.connect(g);
+    g.connect(bus); g.connect(A.nodes.echoIn);
+    o.start(t); o2.start(t); vib.start(t);
+    o.stop(t + dur + 0.15); o2.stop(t + dur + 0.15); vib.stop(t + dur + 0.15);
+    scrap(o, [g, o2, o2g, vib, vibG, bp, ag]);
+  } else if (timbre === 'santoor') { // hammered dulcimer: bright, metallic, struck strings + beating
+    const partials = [[1, 0.5, 0], [2, 0.3, 4], [3.01, 0.16, -5], [4.2, 0.1, 6]];   // inharmonic, detuned pairs
+    const g = A.ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.32 * vel, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.9);       // long metallic ring
+    const lp = A.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(clamp(freq * 12, 3000, 12000), t);
+    lp.frequency.exponentialRampToValueAtTime(clamp(freq * 4, 1200, 6000), t + Math.max(0.2, dur));  // bright -> mellow
+    const parts = [];
+    for (const [ratio, amp, det] of partials) {
+      const o = A.ctx.createOscillator();
+      o.type = 'triangle'; o.frequency.value = freq * ratio; o.detune.value = detune + det;
+      const og = A.ctx.createGain(); og.gain.value = amp;
+      o.connect(og); og.connect(lp);
+      o.start(t); o.stop(t + dur + 1.0);
+      parts.push(o, og);
+    }
+    lp.connect(g); g.connect(bus); g.connect(A.nodes.echoIn);
+    scrap(parts[0], [g, lp, ...parts.slice(1)]);
+  } else if (timbre === 'sarangi') { // bowed, deeply vocal; big meend + expressive vibrato + a vowel formant
+    const scoop = freq * 0.91;                          // sarangi glides a lot -> a large meend
+    const glide = Math.min(0.22, dur * 0.4);
     const o1 = A.ctx.createOscillator();
     o1.type = 'sawtooth'; o1.detune.value = detune;
     o1.frequency.setValueAtTime(scoop, t);
     o1.frequency.exponentialRampToValueAtTime(freq, t + glide);
-    const o2 = A.ctx.createOscillator();
-    o2.type = 'sawtooth'; o2.detune.value = detune + 8;
+    const o2 = A.ctx.createOscillator();               // sympathetic-string shimmer
+    o2.type = 'sawtooth'; o2.detune.value = detune + 6;
     o2.frequency.setValueAtTime(scoop, t);
     o2.frequency.exponentialRampToValueAtTime(freq, t + glide);
-    const bp = A.ctx.createBiquadFilter();              // twang: bandpass opens on the pluck, then closes
-    bp.type = 'bandpass'; bp.Q.value = 3.2;
-    bp.frequency.setValueAtTime(freq * 6, t);
-    bp.frequency.exponentialRampToValueAtTime(Math.max(400, freq * 1.5), t + Math.max(0.2, dur * 0.6));
-    const buzz = A.ctx.createOscillator();              // jivari: bright partial fluttered by a fast tremolo
-    buzz.type = 'triangle';
-    buzz.frequency.setValueAtTime(scoop * 4, t);
-    buzz.frequency.exponentialRampToValueAtTime(freq * 4, t + glide);
-    const buzzG = A.ctx.createGain(); buzzG.gain.value = 0.05 * vel;
-    const trem = A.ctx.createOscillator(); trem.frequency.value = 33;
-    const tremG = A.ctx.createGain(); tremG.gain.value = 0.04 * vel;
-    trem.connect(tremG); tremG.connect(buzzG.gain);
-    buzz.connect(buzzG);
-    const g = A.ctx.createGain();                       // pluck: sharp attack, long ring
+    const o2g = A.ctx.createGain(); o2g.gain.value = 0.4;
+    const vib = A.ctx.createOscillator(); vib.frequency.value = 5.6;
+    const vibG = A.ctx.createGain();
+    vibG.gain.setValueAtTime(0, t);
+    vibG.gain.linearRampToValueAtTime(11, t + Math.min(0.5, dur * 0.5));
+    vib.connect(vibG); vibG.connect(o1.detune); vibG.connect(o2.detune);
+    const f1 = A.ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 900; f1.Q.value = 4;   // vowel
+    const lp = A.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.8;
+    const g = A.ctx.createGain();                       // bowed swell
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.27 * vel, t + 0.006);
-    g.gain.exponentialRampToValueAtTime(0.07 * vel + 0.0001, t + Math.max(0.25, dur * 0.7));
-    g.gain.linearRampToValueAtTime(0, t + dur + 0.5);
-    o1.connect(bp); o2.connect(bp); bp.connect(g); buzzG.connect(g);
+    g.gain.linearRampToValueAtTime(0.16 * vel, t + Math.min(0.12, dur * 0.25));
+    g.gain.setValueAtTime(0.16 * vel, t + Math.max(0.14, dur - 0.08));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.14);
+    o1.connect(lp); o2.connect(o2g); o2g.connect(lp);
+    lp.connect(g); lp.connect(f1); f1.connect(g);      // dry + vocal formant
     g.connect(bus); g.connect(A.nodes.echoIn);
-    const stop = t + dur + 0.6;
-    o1.start(t); o2.start(t); buzz.start(t); trem.start(t);
-    o1.stop(stop); o2.stop(stop); buzz.stop(stop); trem.stop(stop);
-    scrap(o1, [g, o2, bp, buzz, buzzG, trem, tremG]);
+    o1.start(t); o2.start(t); vib.start(t);
+    o1.stop(t + dur + 0.2); o2.stop(t + dur + 0.2); vib.stop(t + dur + 0.2);
+    scrap(o1, [g, o2, o2g, vib, vibG, f1, lp]);
+  } else if (timbre === 'shehnai') { // double-reed: bright, nasal, penetrating; reedy vibrato + a little meend
+    const scoop = freq * 0.965;
+    const glide = Math.min(0.08, dur * 0.22);
+    const osc = A.ctx.createOscillator();
+    osc.type = 'sawtooth'; osc.detune.value = detune;
+    osc.frequency.setValueAtTime(scoop, t);
+    osc.frequency.exponentialRampToValueAtTime(freq, t + glide);
+    const vib = A.ctx.createOscillator(); vib.frequency.value = 5.6;
+    const vibG = A.ctx.createGain();
+    vibG.gain.setValueAtTime(0, t);
+    vibG.gain.linearRampToValueAtTime(7, t + Math.min(0.4, dur * 0.5));
+    vib.connect(vibG); vibG.connect(osc.detune);
+    const bpN = A.ctx.createBiquadFilter();            // nasal formant
+    bpN.type = 'bandpass'; bpN.frequency.value = clamp(freq * 3, 800, 4000); bpN.Q.value = 3.5;
+    const bpNg = A.ctx.createGain(); bpNg.gain.value = 0.9;
+    const lp = A.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1.2;
+    lp.frequency.setValueAtTime(1200 + vel * 3000, t);
+    lp.frequency.exponentialRampToValueAtTime(900 + vel * 1600, t + dur);
+    const g = A.ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.12 * vel, t + 0.03);
+    g.gain.setValueAtTime(0.12 * vel, t + Math.max(0.04, dur - 0.05));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.1);
+    osc.connect(lp); lp.connect(g); lp.connect(bpN); bpN.connect(bpNg); bpNg.connect(g);   // dry + nasal formant
+    g.connect(bus); g.connect(A.nodes.echoIn);
+    osc.start(t); vib.start(t);
+    osc.stop(t + dur + 0.15); vib.stop(t + dur + 0.15);
+    scrap(osc, [g, lp, vib, vibG, bpN, bpNg]);
+  } else if (timbre === 'veena') { // plucked string like the sitar, but rounder & woodier; softer buzz + meend
+    const scoop = freq * 0.94;
+    const glide = Math.min(0.14, dur * 0.32);
+    const burst = noiseSource(t, Math.min(0.07, 3 / freq + 0.006));
+    const dl = A.ctx.createDelay(0.2);
+    dl.delayTime.setValueAtTime(1 / scoop, t);
+    dl.delayTime.exponentialRampToValueAtTime(1 / freq, t + glide);
+    const lp = A.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = clamp(freq * 7, 1400, 7000);   // darker/rounder than the sitar
+    lp.Q.value = -4;
+    const fbg = A.ctx.createGain();
+    fbg.gain.value = clamp(0.985 - freq / 24000, 0.9, 0.985);   // long, sweet ring
+    burst.connect(dl); dl.connect(lp); lp.connect(fbg); fbg.connect(dl);
+    const ws = A.ctx.createWaveShaper();               // gentle jivari (much softer than the sitar)
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; curve[i] = Math.tanh(2 * x); }
+    ws.curve = curve;
+    const bz = A.ctx.createBiquadFilter();
+    bz.type = 'bandpass'; bz.frequency.value = clamp(freq * 2.5, 700, 4000); bz.Q.value = 1.8;
+    const bzMix = A.ctx.createGain(); bzMix.gain.value = 0.12 * vel;
+    lp.connect(ws); ws.connect(bz); bz.connect(bzMix);
+    const g = A.ctx.createGain();
+    g.gain.setValueAtTime(0.44 * vel, t);
+    g.gain.setValueAtTime(0.44 * vel, t + Math.max(0.05, dur));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.6);
+    lp.connect(g); bzMix.connect(g);
+    g.connect(bus); g.connect(A.nodes.echoIn);
+    const ms = (t - A.ctx.currentTime + dur + 1.1) * 1000;
+    setTimeout(() => { for (const n of [dl, lp, fbg, ws, bz, bzMix, g]) { try { n.disconnect(); } catch (e) {} } }, Math.max(50, ms));
+  } else if (timbre === 'harmonium') { // reed organ: sustained stacked reeds with a gentle bellows shimmer
+    const partials = [[1, 0.5], [2, 0.28], [3, 0.16], [4, 0.09]];
+    const g = A.ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.18 * vel, t + 0.04);
+    g.gain.setValueAtTime(0.18 * vel, t + Math.max(0.06, dur - 0.05));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.12);
+    const lp = A.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000; lp.Q.value = 0.7;
+    const trem = A.ctx.createOscillator(); trem.frequency.value = 5.2;   // reed/bellows shimmer
+    const tremG = A.ctx.createGain(); tremG.gain.value = 6;
+    trem.connect(tremG);
+    const parts = [];
+    for (const [ratio, amp] of partials) {
+      const o = A.ctx.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = freq * ratio; o.detune.value = detune;
+      tremG.connect(o.detune);
+      const og = A.ctx.createGain(); og.gain.value = amp;
+      o.connect(og); og.connect(lp);
+      o.start(t); o.stop(t + dur + 0.15);
+      parts.push(o, og);
+    }
+    trem.start(t); trem.stop(t + dur + 0.15);
+    lp.connect(g); g.connect(bus); g.connect(A.nodes.echoIn);
+    scrap(parts[0], [g, lp, trem, tremG, ...parts.slice(1)]);
   } else { // pure sine
     const o = A.ctx.createOscillator();
     o.frequency.value = freq; o.detune.value = detune;
