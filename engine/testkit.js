@@ -89,20 +89,27 @@ function schedule() {
 
 async function runAll() {
   const started = reg.slice();
+  const ui = (typeof document !== "undefined") ? mountLive(started) : null;
   let pass = 0, fail = 0, skip = 0;
   const fails = [];
-  for (const t of started) {
-    if (t.skip) { skip++; line("skip", t.name, t.reason); continue; }
-    try { await t.fn(); pass++; line("pass", t.name); }
-    catch (e) { fail++; fails.push({ name: t.name, err: e }); line("FAIL", t.name, e && e.message); }
+  for (let i = 0; i < started.length; i++) {
+    const t = started[i];
+    if (ui) { ui.status(i, "run"); ui.head(pass, fail, skip, i); await paint(); }  // flush prior results + "running"
+    if (t.skip) { skip++; line("skip", t.name, t.reason); if (ui) ui.status(i, "skip", t.reason); continue; }
+    try { await t.fn(); pass++; line("pass", t.name); if (ui) ui.status(i, "pass"); }
+    catch (e) { fail++; fails.push({ name: t.name, err: e }); line("FAIL", t.name, e && e.message); if (ui) ui.status(i, "fail", (e && e.stack) || e); }
   }
   print(`\n${pass} passed · ${fail} failed · ${skip} skipped`);
   for (const f of fails) print(`  ✗ ${f.name}\n    ${(f.err && f.err.stack) || f.err}`);
   if (isNode) process.exitCode = fail ? 1 : 0;
   globalThis.__testrun = { pass, fail, skip };   // record driver / CI can poll this
-  if (typeof document !== "undefined") toPage(pass, fail, skip, fails);
+  if (ui) { ui.head(pass, fail, skip, started.length); await paint(); }
   return { pass, fail, skip };
 }
+
+// yields long enough for the browser to actually repaint between tests
+const paint = () => new Promise((r) =>
+  typeof requestAnimationFrame === "function" ? requestAnimationFrame(() => requestAnimationFrame(r)) : setTimeout(r));
 
 function line(kind, name, extra) {
   const mark = kind === "pass" ? "✓" : kind === "skip" ? "–" : "✗";
@@ -110,12 +117,55 @@ function line(kind, name, extra) {
 }
 function print(s) { console.log(s); }
 
-function toPage(pass, fail, skip, fails) {
-  const pre = document.createElement("pre");
-  pre.style.cssText = "font:13px ui-monospace,monospace;padding:16px;white-space:pre-wrap";
-  pre.textContent = reg.map((t) => `${t.skip ? "–" : "•"} ${t.name}`).join("\n") +
-    `\n\n${pass} passed · ${fail} failed · ${skip} skipped` +
-    fails.map((f) => `\n\n✗ ${f.name}\n${(f.err && f.err.stack) || f.err}`).join("");
-  pre.style.color = fail ? "#b00" : "#080";
-  document.body.appendChild(pre);
+// Live in-page reporter: a header + progress bar + one row per test, updated as
+// each test completes (not just at the end).
+function mountLive(tests) {
+  const COL = { run: "#2563eb", pass: "#0a7d2c", fail: "#c0261a", skip: "#8a8f98", pend: "#c4c8cf" };
+  const GLYPH = { pend: "○", run: "▶", pass: "✓", fail: "✗", skip: "–" };
+  const total = tests.length;
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;max-width:920px;margin:8px 16px 48px";
+  const hd = document.createElement("div");
+  hd.style.cssText = "font-weight:600;margin-bottom:8px;color:" + COL.run;
+  hd.textContent = "▶ running… 0/" + total;
+  const barOuter = document.createElement("div");
+  barOuter.style.cssText = "height:6px;background:#eceef2;border-radius:4px;overflow:hidden;margin-bottom:14px";
+  const bar = document.createElement("div");
+  bar.style.cssText = "height:100%;width:0;background:" + COL.run + ";transition:width .12s ease";
+  barOuter.appendChild(bar);
+  const list = document.createElement("div");
+  wrap.append(hd, barOuter, list);
+  document.body.appendChild(wrap);
+
+  const rows = tests.map((t) => {
+    const li = document.createElement("div");
+    li.style.cssText = "display:flex;gap:8px;padding:2px 0;color:" + COL.pend;
+    const g = document.createElement("span"); g.textContent = GLYPH.pend; g.style.width = "1em"; g.style.flex = "0 0 auto";
+    const nm = document.createElement("span"); nm.textContent = t.name; nm.style.color = "#1a1d22";
+    li.append(g, nm); list.appendChild(li);
+    return { li, g, nm };
+  });
+
+  return {
+    status(i, s, extra) {
+      const r = rows[i]; if (!r) return;
+      r.g.textContent = GLYPH[s]; r.g.style.color = COL[s]; r.li.style.color = COL[s];
+      if (s === "skip" && extra) r.nm.textContent = tests[i].name + "  (" + extra + ")";
+      if (s === "fail" && extra) {
+        const pre = document.createElement("pre");
+        pre.style.cssText = "margin:3px 0 6px 1.7em;padding:8px 10px;background:#fff5f5;border-left:3px solid " + COL.fail +
+          ";color:" + COL.fail + ";white-space:pre-wrap;overflow:auto";
+        pre.textContent = String(extra);
+        r.li.after(pre);
+      }
+    },
+    head(pass, fail, skip, done) {
+      const running = done < total;
+      hd.textContent = (running ? "▶ running… " : fail ? "✗ done " : "✓ done ") +
+        done + "/" + total + "  ·  " + pass + " passed · " + fail + " failed · " + skip + " skipped";
+      hd.style.color = running ? COL.run : fail ? COL.fail : COL.pass;
+      bar.style.width = Math.round((done / total) * 100) + "%";
+      bar.style.background = fail ? COL.fail : running ? COL.run : COL.pass;
+    },
+  };
 }
