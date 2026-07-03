@@ -138,7 +138,7 @@ function muxOgg(chunks, channels, preSkip, inRate) {
   head[8] = 1; head[9] = channels;
   new DataView(head.buffer).setUint16(10, preSkip, true);
   new DataView(head.buffer).setUint32(12, inRate, true);
-  const vendor = new TextEncoder().encode('fable');
+  const vendor = new TextEncoder().encode('daysong');
   const tags = new Uint8Array(8 + 4 + vendor.length + 4);
   tags.set([0x4f, 0x70, 0x75, 0x73, 0x54, 0x61, 0x67, 0x73], 0);   // 'OpusTags'
   const tdv = new DataView(tags.buffer);
@@ -236,17 +236,17 @@ export async function encodeSong(audioBuffer, format, opts = {}) {
     if (format === 'mp3') {
       const kbps = mp3Kbps(audioBuffer.sampleRate);
       try { out = await encodeMP3Wasm(audioBuffer, kbps, P); }             // WASM LAME (stereo, fast)
-      catch (e) { console.warn('[fable] wasm mp3 failed, using lamejs:', e); out = await encodeMP3(audioBuffer, kbps, P); }
+      catch (e) { console.warn('[daysong] wasm mp3 failed, using lamejs:', e); out = await encodeMP3(audioBuffer, kbps, P); }
     } else {
       const container = format === 'webm' ? 'webm' : 'ogg';
       if (hasWebCodecsOpus()) {
         try { out = await encodeOpusWC(audioBuffer, container, P); }
-        catch (e) { console.warn('[fable] WebCodecs opus failed, using MediaRecorder:', e); out = null; }
+        catch (e) { console.warn('[daysong] WebCodecs opus failed, using MediaRecorder:', e); out = null; }
       }
       if (!out) out = await encodeMediaRecorder(audioBuffer, container === 'ogg', P);
     }
   } catch (err) {
-    console.warn('[fable] encode failed, falling back to WAV:', err);
+    console.warn('[daysong] encode failed, falling back to WAV:', err);
     out = { blob: bufferToWav(audioBuffer), mime: 'audio/wav', ext: 'wav', fallback: true };
   }
   onProgress({ phase: 'encoding', progress: 1 });

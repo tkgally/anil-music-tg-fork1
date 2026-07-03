@@ -1,5 +1,5 @@
 /* =====================================================================
-   FABLE - autonomous generative synthesizer  (public entry / barrel)
+   DAYSONG - autonomous generative synthesizer  (public entry / barrel)
 
    Pure Web Audio. No samples, no libraries. The engine is split into focused
    peer modules; this file only re-exports the public API, so the importmap

@@ -1,6 +1,6 @@
 # METALEARNINGS
 
-Generalized principles inferred from human feedback while building Fable — the
+Generalized principles inferred from human feedback while building Daysong — the
 things the human turned out to care about, written as **portable rules**, not a
 task log. Load this alongside `AGENTS.md` and apply pre-emptively. When a
 correction happens, distill what it *generalizes to* and add it here.

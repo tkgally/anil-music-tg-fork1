@@ -1,6 +1,7 @@
-# Fable — agent instructions
+# Daysong — agent instructions
 
-**Fable** is an autonomous generative music synthesizer: a self-contained,
+**Daysong** is an autonomous generative music synthesizer — a unique piece composed
+just for you, today. (Originally cloned from the *Fable* prototype.) It is a self-contained,
 no-build web app that composes a whole piece with pure Web Audio, renders it
 offline to an `AudioBuffer`, encodes it in-memory (Opus / MP3 / WebM), and plays
 it back. Reactized from the original prototype; the repo is `anilgulecha/music`.
