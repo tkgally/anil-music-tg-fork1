@@ -1,4 +1,4 @@
-// Fable — autonomous generative synthesizer, reactized.
+// Daysong — a unique generative piece, composed just for you, today. (reactized)
 //
 // Model: NO live tuning. You set the knobs, hit Generate → the whole song is
 // rendered offline into an AudioBuffer (+ a piano-roll JSON kept in memory),
@@ -112,7 +112,7 @@ const GROUPS = [
       { k: "master", type: "range", label: "Volume", help: "Master volume" },
     ],
     note:
-      "Fable composes the whole piece up front: it invents motifs, develops them by " +
+      "Daysong composes the whole piece up front: it invents motifs, develops them by " +
       "transposition, inversion and retrograde, harmonizes with functional progressions " +
       "(with borrowed shadows and secondary dominants), modulates when wanderlust strikes, " +
       "and shapes the arc you choose. Set the knobs, then Generate — the song is rendered " +
@@ -422,11 +422,11 @@ function Transport({
       <div className="flex items-center gap-2.5">
         <Music4 size={20} className="text-primary" />
         <div className="leading-none">
-          <h1 className="text-lg font-bold tracking-[0.4em] bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">FABLE</h1>
-          <p className="text-[9px] tracking-[0.18em] uppercase text-base-content/50 mt-1">autonomous music synthesizer</p>
+          <h1 className="text-lg font-bold tracking-[0.4em] bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">DAYSONG</h1>
+          <p className="text-[9px] tracking-[0.18em] uppercase text-base-content/50 mt-1">a unique song, just for today</p>
         </div>
         <a href="#/roster" className="btn btn-ghost btn-xs btn-square ml-auto" data-help="Voice roster — hear every instrument"><AudioLines size={15} /></a>
-        <a href="#/about" className="btn btn-ghost btn-xs btn-square" data-help="About Fable"><Info size={15} /></a>
+        <a href="#/about" className="btn btn-ghost btn-xs btn-square" data-help="About Daysong"><Info size={15} /></a>
       </div>
 
       {/* format + generate */}
@@ -459,7 +459,7 @@ function Transport({
           {playing ? <Pause size={16} /> : <Play size={16} />}{playing ? "Pause" : "Play"}
         </button>
         {song ? (
-          <a className="btn btn-ghost btn-sm gap-1.5" href={song.url} download={`fable-${song.seed}.${song.ext}`} data-help="Download the encoded song">
+          <a className="btn btn-ghost btn-sm gap-1.5" href={song.url} download={`daysong-${song.seed}.${song.ext}`} data-help="Download the encoded song">
             <Download size={15} /> Download
           </a>
         ) : (
@@ -568,7 +568,7 @@ function Studio({ params, setParams, seed, setSeed }) {
       setSong({ ...enc, format });
       setPhase("ready");
     } catch (e) {
-      console.error("[fable] generate failed", e);
+      console.error("[daysong] generate failed", e);
       setPhase("idle");
     }
   };
@@ -761,7 +761,7 @@ function Roster({ backHash }) {
         <h1 className="text-2xl font-bold tracking-[0.3em] bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">VOICE ROSTER</h1>
       </div>
       <p className="text-sm text-base-content/60 mb-8 max-w-2xl">
-        Every instrument Fable can synthesize today — no samples, all Web Audio. Tap a card to hear a short
+        Every instrument Daysong can synthesize today — no samples, all Web Audio. Tap a card to hear a short
         phrase on that voice (tap again to stop). This is the full palette.
       </p>
 
@@ -807,11 +807,12 @@ function About({ backHash }) {
       <a href={backHash} className="btn btn-ghost btn-sm gap-1.5 mb-6"><ArrowLeft size={15} /> Back to the studio</a>
       <div className="flex items-center gap-3 mb-4">
         <Music4 size={26} className="text-primary" />
-        <h1 className="text-2xl font-bold tracking-[0.35em] bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">FABLE</h1>
+        <h1 className="text-2xl font-bold tracking-[0.35em] bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">DAYSONG</h1>
       </div>
       <div className="prose prose-sm max-w-none text-base-content/80 space-y-3">
         <p>
-          <strong>Fable</strong> is an autonomous generative synthesizer. It composes the whole piece
+          <strong>Daysong</strong> is an autonomous generative synthesizer — a unique piece,
+          composed just for you, today. It composes the whole piece
           up front with pure Web Audio — no samples, no libraries — inventing motifs and developing
           them by transposition, inversion and retrograde, harmonizing with functional progressions
           (with borrowed shadows and secondary dominants), modulating when wanderlust strikes, and
@@ -832,7 +833,7 @@ function About({ backHash }) {
         </p>
         <p className="text-base-content/50">
           Reactized (React 18 + daisyUI, light chrome, CDN-only, no build step) from the original
-          Fable. The composition + audio engine is unchanged in <code>engine.js</code>; only the I/O
+          Fable prototype. The composition + audio engine is unchanged in <code>engine.js</code>; only the I/O
           boundary (offline render + encode) is new.
         </p>
       </div>

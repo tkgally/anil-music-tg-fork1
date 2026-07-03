@@ -1,6 +1,6 @@
-# Fable — autonomous generative synthesizer (reactized)
+# Daysong — a unique generative song, just for you, today
 
-A React port of the original Fable synthesizer. Fable composes music with pure
+A React port of the original **Fable** prototype. Daysong composes music with pure
 Web Audio — no samples, no libraries — inventing motifs and developing them
 (transposition, inversion, retrograde), harmonizing with functional
 progressions, modulating, and shaping a whole piece along a chosen narrative
@@ -98,7 +98,7 @@ Routing is hash-based (works on any static host):
   it), or hand-edit it. Same seed + same settings = the same piece.
 - `#/about` — a real second route; browser back/forward moves between it and
   the studio.
-- `#/roster` — the **voice roster**: every instrument Fable can synthesize,
+- `#/roster` — the **voice roster**: every instrument Daysong can synthesize,
   grouped (lead / pad / rhythm / percussion). Tap a card to hear a short
   characteristic phrase on that voice (tap again to stop). It uses
   `engine.auditionVoice({ voice, timbre })`, which renders the phrase through
