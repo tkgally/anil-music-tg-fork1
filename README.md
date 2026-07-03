@@ -30,6 +30,9 @@ the background (“go have a coffee”). Baked audio is cached in IndexedDB
   energy arc rotates per day. The opener is capped at energy 5 / 3:00 so
   playback starts fast. **Play all loops** — after the twelfth song it starts
   over, so the day's music just keeps going.
+- **Polite baking:** only the song you're waiting for bakes with full
+  parallelism; the rest of the queue renders one segment at a time
+  (`batch: 1`), so the CPU stays free for your actual work.
 - `#/<name>/<yymmdd>/<four-words>` — one song alone: just its name + the
   visualization (music keeps playing when you move between views).
 - `#/p/<four-words>` — a **shared** song: plays for anyone, but the playlist it

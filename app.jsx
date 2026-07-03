@@ -1214,9 +1214,14 @@ function DayPage({ name, date, words }) {
   const bakeSong = async (i) => {
     const s = songs[i], k = keyOf(s);
     patchBake(k, { status: "baking", prog: 0 });
+    // Someone is WAITING for the wanted song (first press / a clicked row):
+    // bake it with full parallelism. Everything else bakes one segment at a
+    // time so the CPU stays free for the user's actual work.
+    const urgent = qRef.current.want === k;
     try {
       const rendered = await engine.renderSong(s.params, {
         fast: true,
+        batch: urgent ? undefined : 1,
         onProgress: ({ progress }) => patchBake(k, { prog: progress || 0 }),
       });
       const enc = await engine.encodeSong(rendered.audioBuffer, "opus", { onProgress: () => {} });
