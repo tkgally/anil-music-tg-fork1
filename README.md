@@ -6,7 +6,35 @@ Web Audio — no samples, no libraries — inventing motifs and developing them
 progressions, modulating, and shaping a whole piece along a chosen narrative
 arc. Every seed is a different piece.
 
-## How it works: render → encode → play (no live tuning)
+## The day experience
+
+Land on the site → **“Hi. What’s your name?”** → you're dropped on
+`#/<name>/<yymmdd>`: **your twelve songs for today**, derived deterministically
+from your name + the date (same twelve on any device, forever; no backend, no
+accounts). Press **bake & play**: songs render+encode in the browser (Fast
+mode, Opus), playback starts the moment the first one lands, the rest bake in
+the background (“go have a coffee”). Baked audio is cached in IndexedDB
+(today + yesterday), so a second visit plays instantly.
+
+- **4 words = 1 song.** A song code is 4 words from a frozen, hand-curated
+  1024-word list = 40 bits: `seed(14) tempo(4) key(4) mode(2) lead(4) pad(3)
+  arc(2) energy(3) length(2) swing(2)` — see `engine/songcode.js`. Decoding is
+  tuned toward **good-mood music**: modes ∈ {ionian, lydian, mixolydian,
+  dorian}, tempo 96–141 BPM, low shadow/wanderlust, high gravity.
+- `#/<name>/<yymmdd>/<four-words>` — one song alone: just its name + the
+  visualization (music keeps playing when you move between views).
+- `#/p/<four-words>` — a **shared** song: plays for anyone, but the playlist it
+  came from stays private (the name+date → songs hash is one-way).
+- The page wears your colors: background hue from the **name**, accent hue from
+  the **date**, and the backdrop breathes with the music.
+- **FROZEN FOREVER (v1):** `engine/wordlist.js`, the bit layout + derivation in
+  `engine/songcode.js`, and the playlist hash in `engine/playlist.js` — a URL is
+  a song. Tests pin all three.
+
+The original knob-studio lives on at `#/studio` (legacy `#/song/<seed>?…` URLs
+still work), plus `#/roster` and `#/about`.
+
+## How the studio works: render → encode → play (no live tuning)
 
 There is **no on-the-fly tuning**. You set the knobs and hit **Generate**:
 
@@ -98,6 +126,7 @@ Routing is hash-based (works on any static host):
   it), or hand-edit it. Same seed + same settings = the same piece.
 - `#/about` — a real second route; browser back/forward moves between it and
   the studio.
+- `#/<name>/<yymmdd>` — the day page (see above).
 - `#/roster` — the **voice roster**: every instrument Daysong can synthesize,
   grouped (lead / pad / rhythm / percussion). Tap a card to hear a short
   characteristic phrase on that voice (tap again to stop). It uses

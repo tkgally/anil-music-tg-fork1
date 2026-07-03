@@ -5,6 +5,9 @@
 //   node engine/tests.mjs --record   re-record the Node-recordable goldens
 import "./rng-test.js";
 import "./theory-test.js";
+import "./wordlist-test.js";
+import "./songcode-test.js";
+import "./playlist-test.js";
 import "./composer-test.js";
 import "./viz-test.js";
 import "./encoders-test.js";

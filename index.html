@@ -16,6 +16,49 @@
     />
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Fraunces: the Daysong display serif -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&display=swap" />
+
+    <!-- Daysong experience: typography, identity backdrop, small animations -->
+    <style>
+      .ds-serif { font-family: "Fraunces", Georgia, serif; font-optical-sizing: auto; }
+
+      /* page identity: --bgh = username hue, --ach = date accent hue,
+         --pulse (0..1) breathes with the music */
+      .ds-backdrop {
+        position: fixed; inset: 0; z-index: -1; pointer-events: none;
+        background:
+          radial-gradient(1100px 700px at 88% -12%,
+            hsl(var(--ach, 250) 85% 78% / calc(0.45 + var(--pulse, 0) * 0.35)), transparent 62%),
+          radial-gradient(950px 650px at -12% 104%,
+            hsl(var(--bgh, 40) 80% 78% / calc(0.60 + var(--pulse, 0) * 0.20)), transparent 65%),
+          linear-gradient(168deg, hsl(var(--bgh, 40) 75% 95%), hsl(var(--bgh, 40) 60% 88.5%));
+      }
+
+      @keyframes dsUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+      .ds-up { animation: dsUp 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+      @keyframes dsBake { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.55); opacity: 1; } }
+      .ds-baking { animation: dsBake 1.1s ease-in-out infinite; }
+
+      @keyframes dsEq { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+      .ds-eq span { display: inline-block; width: 3px; border-radius: 2px; transform-origin: bottom; animation: dsEq 0.9s ease-in-out infinite; }
+      .ds-eq span:nth-child(2) { animation-delay: 0.22s; height: 100%; }
+      .ds-eq span:nth-child(3) { animation-delay: 0.44s; }
+
+      @keyframes dsCaret { 0%, 45% { opacity: 1; } 55%, 100% { opacity: 0; } }
+      .ds-caret { animation: dsCaret 1.1s steps(1) infinite; }
+
+      @keyframes dsShimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+      .ds-shimmer {
+        background: linear-gradient(90deg, currentColor 40%, hsl(var(--ach, 250) 70% 60%) 50%, currentColor 60%);
+        background-size: 200% 100%; -webkit-background-clip: text; background-clip: text;
+        color: transparent; animation: dsShimmer 2.2s linear infinite;
+      }
+    </style>
+
     <!--
       importmap: bare specifiers → CDN. `engine` is mapped to the local
       module so app.jsx can `import * as engine from "engine"`. (Relative
@@ -35,7 +78,10 @@
     </script>
     <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
   </head>
-  <body class="bg-base-100 text-base-content min-h-screen">
+  <!-- NOTE: no bg-* on body — an opaque body background would paint OVER the
+       fixed z-index:-1 identity backdrop (.ds-backdrop). The html canvas is
+       already white for the studio/roster pages. -->
+  <body class="text-base-content min-h-screen">
     <div id="root">
       <div class="min-h-screen flex items-center justify-center">
         <span class="loading loading-dots loading-lg" aria-busy="true"></span>

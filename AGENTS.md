@@ -48,6 +48,12 @@ README.md    what it is + how it works + how to test
 - `encoders.js` — `bufferToWav` / `encodeSong` (+ opus/mp3/webm codecs, muxers).
 - `viz.js` — `fitCanvas` / `drawViz` / `cueAt`.
 - `rng.js`, `theory.js` — seeded RNG + math; scales, meters, arcs, rhythm.
+- `wordlist.js` / `songcode.js` / `playlist.js` — the day experience:
+  4 words = 40 bits = a complete good-mood song; (name, date) → the same 12
+  songs forever. **FROZEN (v1)**: a URL is a song — never change the word
+  list, the bit layout, the decode derivation (RNG call order included) or
+  the playlist hash. Tests pin all of them; treat a red “FROZEN” test as
+  “revert my change”, not “re-record the golden”.
 
 Model & rules:
 
