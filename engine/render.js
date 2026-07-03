@@ -205,21 +205,37 @@ export async function auditionVoice(spec, opts = {}) {
   const events = [];
   if (spec.voice === 'perc') {
     const type = spec.timbre || 'kick';
-    const grid = {
-      kick: { n: 4, step: 0.45 }, snare: { n: 4, step: 0.5 }, hat: { n: 8, step: 0.24 },
-      hatOpen: { n: 4, step: 0.42 }, shaker: { n: 8, step: 0.22 },
-    }[type] || { n: 4, step: 0.4 };
-    for (let i = 0; i < grid.n; i++) events.push({ t: i * grid.step, type, vel: i % 2 === 0 ? 0.95 : 0.68 });
+    if (type === 'tabla') {
+      // teental theka (16 beats): Dha Dhin Dhin Dha | Dha Dhin Dhin Dha | Dha Tin Tin Ta | Ta Dhin Dhin Dha
+      const step = 0.3;
+      const theka = ['dha','dhin','dhin','dha','dha','dhin','dhin','dha','dha','tin','tin','ta','ta','dhin','dhin','dha'];
+      const bols = { dha: ['tablaGe','tablaNa'], dhin: ['tablaGe','tablaTin'], tin: ['tablaTin'], ta: ['tablaNa'] };
+      theka.forEach((bol, i) => {
+        const vel = (i % 4 === 0) ? 0.95 : 0.66;
+        for (const st of bols[bol]) events.push({ t: i * step, type: st, vel });
+      });
+    } else {
+      const grid = {
+        kick: { n: 4, step: 0.45 }, snare: { n: 4, step: 0.5 }, hat: { n: 8, step: 0.24 },
+        hatOpen: { n: 4, step: 0.42 }, shaker: { n: 8, step: 0.22 },
+      }[type] || { n: 4, step: 0.4 };
+      for (let i = 0; i < grid.n; i++) events.push({ t: i * grid.step, type, vel: i % 2 === 0 ? 0.95 : 0.68 });
+    }
   } else if (spec.voice === 'arp') {
     const cyc = [60, 64, 67, 72, 76, 72, 67, 64];
     cyc.concat(cyc).forEach((m, i) => events.push({ t: i * 0.15, midi: m, dur: 0.2, vel: 0.72 }));
   } else {
-    const ph = {
-      lead:    { vel: 0.82, notes: [[67, 0, 0.45], [71, 0.4, 0.45], [74, 0.8, 0.45], [79, 1.2, 0.4], [76, 1.6, 0.4], [72, 2.0, 1.6]] },
-      counter: { vel: 0.80, notes: [[62, 0, 0.42], [65, 0.36, 0.42], [69, 0.72, 0.42], [67, 1.08, 0.42], [64, 1.44, 1.1]] },
-      pad:     { vel: 0.90, energy: 0.7, notes: [[55, 0, 3.0], [62, 0.05, 3.0], [67, 0.1, 3.0], [71, 0.15, 3.0]] },
-      bass:    { vel: 0.85, notes: [[40, 0, 0.4], [40, 0.45, 0.4], [45, 0.9, 0.4], [43, 1.35, 0.4], [40, 1.8, 0.7]] },
-    }[spec.voice];
+    // Every melodic voice plays the SAME reference melody, so the timbres are
+    // directly comparable; tanpura keeps its plucked drone cycle. (The shared
+    // line still ends on a long held note, which shows meend / whistle vibrato.)
+    const ph = (spec.voice === 'pad' && spec.timbre === 'tanpura')
+      ? { vel: 0.9, energy: 0.7, notes: [[50,0,2.6],[55,0.62,2.6],[55,1.24,2.6],[43,1.86,2.8],[50,2.6,2.6],[55,3.22,2.6],[55,3.84,2.6],[43,4.46,2.8]] }
+      : {
+          lead:    { vel: 0.82, notes: [[67, 0, 0.45], [71, 0.4, 0.45], [74, 0.8, 0.45], [79, 1.2, 0.4], [76, 1.6, 0.4], [72, 2.0, 1.6]] },
+          counter: { vel: 0.80, notes: [[62, 0, 0.42], [65, 0.36, 0.42], [69, 0.72, 0.42], [67, 1.08, 0.42], [64, 1.44, 1.1]] },
+          pad:     { vel: 0.90, energy: 0.7, notes: [[55, 0, 3.0], [62, 0.05, 3.0], [67, 0.1, 3.0], [71, 0.15, 3.0]] },
+          bass:    { vel: 0.85, notes: [[40, 0, 0.4], [40, 0.45, 0.4], [45, 0.9, 0.4], [43, 1.35, 0.4], [40, 1.8, 0.7]] },
+        }[spec.voice];
     if (!ph) throw new Error('unknown voice ' + spec.voice);
     for (const [midi, t, dur] of ph.notes) events.push({ t, midi, dur, vel: ph.vel, energy: ph.energy });
   }

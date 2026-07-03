@@ -57,10 +57,13 @@ const LEAD_OPTS = [
   ["glass", "Glass (FM bell)"], ["reed", "Reed (filtered saw)"], ["breath", "Breath (flute-ish)"],
   ["keys", "Keys (electric piano)"], ["brass", "Brass (swelling saw)"],
   ["organ", "Organ (drawbars)"], ["pure", "Pure (sine)"],
+  ["bansuri", "Bansuri (bamboo flute)"], ["whistle", "Whistle"], ["santoor", "Santoor (hammered)"],
+  ["sarangi", "Sarangi (bowed)"], ["shehnai", "Shehnai (double-reed)"], ["harmonium", "Harmonium (reed organ)"],
 ];
 const PAD_OPTS = [
   ["warm", "Warm (analog)"], ["halo", "Halo (glass air)"], ["choir", "Choir (vowel formants)"],
   ["strings", "Strings (ensemble)"], ["hollow", "Hollow (woody dark)"],
+  ["tanpura", "Tanpura (drone)"],
 ];
 
 /* ---------------------------------------------------------------------
@@ -699,7 +702,13 @@ const ROSTER = [
       { id: "lead-keys",   voice: "lead", timbre: "keys",   name: "Keys",   tag: "electric piano", desc: "An FM electric piano with a bell-like tine — a Rhodes." },
       { id: "lead-brass",  voice: "lead", timbre: "brass",  name: "Brass",  tag: "swelling saw",   desc: "Detuned saws that swell in with a filter sweep — a brass section." },
       { id: "lead-organ",  voice: "lead", timbre: "organ",  name: "Organ",  tag: "drawbars",       desc: "Additive drawbar organ — stacked harmonic partials." },
-      { id: "lead-pure",   voice: "lead", timbre: "pure",   name: "Pure",   tag: "sine",           desc: "A clean sine with gentle vibrato — the simplest voice." },
+      { id: "lead-pure",    voice: "lead", timbre: "pure",    name: "Pure",    tag: "sine",            desc: "A clean sine with gentle vibrato — the simplest voice." },
+      { id: "lead-bansuri", voice: "lead", timbre: "bansuri", name: "Bansuri", tag: "bamboo flute",    desc: "Breathy bamboo flute — a near-pure tone with an airy chiff, blooming vibrato, and a meend scoop into each note." },
+      { id: "lead-whistle", voice: "lead", timbre: "whistle", name: "Whistle", tag: "pure + air",       desc: "A human whistle — an almost-pure tone with faint breath, wide vibrato, and a gentle slide into each note." },
+      { id: "lead-santoor", voice: "lead", timbre: "santoor", name: "Santoor", tag: "hammered dulcimer", desc: "Bright, metallic struck strings with beating detuned pairs and a long shimmering ring — the Kashmiri dulcimer." },
+      { id: "lead-sarangi", voice: "lead", timbre: "sarangi", name: "Sarangi", tag: "bowed, vocal",      desc: "The most vocal of bowed strings — a large meend, expressive vibrato, and a vowel formant for that singing quality." },
+      { id: "lead-shehnai", voice: "lead", timbre: "shehnai", name: "Shehnai", tag: "double-reed",       desc: "Bright, nasal and penetrating — a reedy double-reed with a nasal formant and reedy vibrato." },
+      { id: "lead-harmonium", voice: "lead", timbre: "harmonium", name: "Harmonium", tag: "reed organ",  desc: "A sustained reed organ — stacked sawtooth reeds with a gentle bellows shimmer." },
     ],
   },
   {
@@ -711,6 +720,7 @@ const ROSTER = [
       { id: "pad-choir",   voice: "pad", timbre: "choir",   name: "Choir",   tag: "vowel formants", desc: "Saws shaped by vowel formants — an ‘aah’ choir." },
       { id: "pad-strings", voice: "pad", timbre: "strings", name: "Strings", tag: "ensemble",       desc: "Four detuned saws with a slow bowing LFO — a string section." },
       { id: "pad-hollow",  voice: "pad", timbre: "hollow",  name: "Hollow",  tag: "woody dark",     desc: "Square plus triangle — dark, woody and hollow." },
+      { id: "pad-tanpura", voice: "pad", timbre: "tanpura", name: "Tanpura", tag: "drone",          desc: "The cyclic four-string drone (Pa–Sa–Sa–Sa) — each string a rich plucked harmonic stack with jivari buzz." },
     ],
   },
   {
@@ -731,6 +741,7 @@ const ROSTER = [
       { id: "perc-hat",     voice: "perc", timbre: "hat",     name: "Hi-hat",   tag: "closed",          desc: "A short, bright tick of highpassed noise." },
       { id: "perc-hatOpen", voice: "perc", timbre: "hatOpen", name: "Open hat", tag: "sizzle",          desc: "The same, held longer — an open sizzle." },
       { id: "perc-shaker",  voice: "perc", timbre: "shaker",  name: "Shaker",   tag: "bandpassed noise", desc: "A soft, breathy shaker — bandpassed noise." },
+      { id: "perc-tabla",   voice: "perc", timbre: "tabla",   name: "Tabla",    tag: "teental theka",    desc: "Dayan + bayan — a 16-beat teental groove of na / tin / ge strokes, with the bayan’s sliding gham." },
     ],
   },
 ];
@@ -777,7 +788,7 @@ function Roster({ backHash }) {
       </div>
       <p className="text-sm text-base-content/60 mb-8 max-w-2xl">
         Every instrument Daysong can synthesize today — no samples, all Web Audio. Tap a card to hear a short
-        phrase on that voice (tap again to stop). This is the palette we’ll grow next.
+        phrase on that voice (tap again to stop). This is the full palette.
       </p>
 
       {ROSTER.map((section) => (
