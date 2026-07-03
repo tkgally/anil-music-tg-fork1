@@ -49,11 +49,12 @@ README.md    what it is + how it works + how to test
 - `viz.js` — `fitCanvas` / `drawViz` / `cueAt`.
 - `rng.js`, `theory.js` — seeded RNG + math; scales, meters, arcs, rhythm.
 - `wordlist.js` / `songcode.js` / `playlist.js` — the day experience:
-  4 words = 40 bits = a complete good-mood song; (name, date) → the same 12
-  songs forever. **FROZEN (v1)**: a URL is a song — never change the word
-  list, the bit layout, the decode derivation (RNG call order included) or
-  the playlist hash. Tests pin all of them; treat a red “FROZEN” test as
-  “revert my change”, not “re-record the golden”.
+  4 words = 40 bits = a complete song; (name, date) → the same 12 songs
+  forever, with diversity quotas built in (12 distinct leads, all ensembles,
+  ≥4 modes, ≥2 non-4/4). **FROZEN (v2, re-cut 2026-07 prerelease)**: a URL is
+  a song — never change the word list, the bit layout, the decode derivation
+  (RNG call order included) or the playlist hash. Tests pin all of them;
+  treat a red “FROZEN” test as “revert my change”, not “re-record the golden”.
 
 Model & rules:
 

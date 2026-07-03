@@ -1,8 +1,9 @@
 // The day's playlist: (name, date) -> the same 12 songs, forever. The
-// derivation is frozen (v1) — the golden playlist pins it.
+// derivation is frozen (v2) — the golden playlist pins it — and diversity
+// is guaranteed by construction, so the quota tests below must always hold.
 import { test, assert, eq } from "./testkit.js";
 import { playlistFor, identityHues, normalizeName, dateCode, hashStr, PLAYLIST_SIZE } from "./playlist.js";
-import { wordsToCode, unpackCode } from "./songcode.js";
+import { wordsToCode, unpackCode, MINOR_MODES, ENSEMBLES } from "./songcode.js";
 
 test("playlist: deterministic — same name+date is the same 12 songs", () => {
   const a = playlistFor("anil", "260703");
@@ -25,18 +26,26 @@ test("playlist: every entry is a valid, playable 4-word song", () => {
   }
 });
 
-test("playlist: variety — no lead or key repeats back-to-back", () => {
-  for (const who of ["anil", "maya", "kiran", "zoe"]) {
-    const pl = playlistFor(who, "260703");
-    for (let i = 1; i < pl.length; i++) {
-      const a = unpackCode(pl[i - 1].code), b = unpackCode(pl[i].code);
-      assert(a.lead !== b.lead || a.key !== b.key, `${who} #${i} repeats lead+key`);
+test("playlist: diversity quotas hold for every name/date", () => {
+  for (const who of ["anil", "maya", "kiran", "zoe", "ravi", "lena"]) {
+    for (const date of ["260703", "260819", "271225"]) {
+      const pl = playlistFor(who, date);
+      const tag = `${who}/${date}`;
+      eq(new Set(pl.map((s) => s.params.leadTimbre)).size, 12, tag + ": 12 distinct leads");
+      assert(new Set(pl.map((s) => s.params.mode)).size >= 4, tag + ": >=4 modes");
+      assert(pl.some((s) => MINOR_MODES.has(s.params.mode)), tag + ": a minor-family color");
+      eq(new Set(pl.map((s) => s.ensemble)).size, ENSEMBLES.length, tag + ": every ensemble");
+      assert(pl.filter((s) => s.params.meter !== "4/4").length >= 2, tag + ": >=2 non-4/4");
+      assert(pl.some((s) => s.params.mix.perc === 0), tag + ": a drumless song");
+      for (let i = 1; i < pl.length; i++) {
+        assert(unpackCode(pl[i - 1].code).key % 12 !== unpackCode(pl[i].code).key % 12, tag + ` #${i} repeats key`);
+      }
     }
   }
 });
 
-test("playlist: FROZEN — anil/260703 opens with the same song forever", () => {
-  eq(playlistFor("anil", "260703")[0].title, "dash easy hummus legend");
+test("playlist: FROZEN v2 — anil/260703 opens with the same song forever", () => {
+  eq(playlistFor("anil", "260703")[0].title, "canoe brook ochre tango");
 });
 
 test("identity: hues deterministic, in range, and separated", () => {

@@ -17,10 +17,19 @@ the background (“go have a coffee”). Baked audio is cached in IndexedDB
 (today + yesterday), so a second visit plays instantly.
 
 - **4 words = 1 song.** A song code is 4 words from a frozen, hand-curated
-  1024-word list = 40 bits: `seed(14) tempo(4) key(4) mode(2) lead(4) pad(3)
-  arc(2) energy(3) length(2) swing(2)` — see `engine/songcode.js`. Decoding is
-  tuned toward **good-mood music**: modes ∈ {ionian, lydian, mixolydian,
-  dorian}, tempo 96–141 BPM, low shadow/wanderlust, high gravity.
+  1024-word list = 40 bits (v2): `seed(12) tempo(4) key(4) mode(3) lead(4)
+  pad(3) arc(3) energy(3) length(2) ensemble(2)` — see `engine/songcode.js`.
+  All 8 modes and 8 arcs are in the space; the *generator weights* stay peppy
+  (~⅔ major-family, tempo 96–141 BPM). The **ensemble** field picks the band:
+  *full* / *unplugged* (no drums) / *groove* (perc-forward, swung) / *chamber*
+  (lead+counter+pad). Each song also gets its own room size (`reverbSec`) and
+  sometimes a **tabla** kit (`percKit`, likelier under Indian leads).
+- **Diversity by construction** (`engine/playlist.js`): a day's 12 songs use
+  12 *distinct* leads (shuffled bag of all 13), every ensemble, ≥4 modes with
+  a minor-family color, ≥2 songs not in 4/4, no adjacent key repeats, and the
+  energy arc rotates per day. The opener is capped at energy 5 / 3:00 so
+  playback starts fast. **Play all loops** — after the twelfth song it starts
+  over, so the day's music just keeps going.
 - `#/<name>/<yymmdd>/<four-words>` — one song alone: just its name + the
   visualization (music keeps playing when you move between views).
 - `#/p/<four-words>` — a **shared** song: plays for anyone, but the playlist it

@@ -636,7 +636,7 @@ function Studio({ params, setParams, seed, setSeed }) {
       mixLead: R(55, 95), mixCounter: Math.random() < 0.2 ? 0 : R(30, 80), mixPad: R(35, 85),
       mixArp: Math.random() < 0.2 ? 0 : R(25, 80), mixBass: R(50, 90),
       mixPerc: Math.random() < 0.25 ? 0 : R(35, 85),
-      leadTimbre: pick(["glass", "reed", "breath", "keys", "brass", "organ", "pure"]),
+      leadTimbre: pick(["glass", "reed", "breath", "keys", "brass", "organ", "pure", "bansuri", "whistle", "santoor", "sarangi", "shehnai", "harmonium"]),
       padTimbre: pick(["warm", "halo", "choir", "strings", "hollow"]),
       reverb: R(25, 70), echo: R(5, 55),
     }));
@@ -884,7 +884,7 @@ function About({ backHash }) {
    hue from the name, accent hue from the date.
    ===================================================================== */
 const NAME_LS = "daysong.name";
-const BAKE_V = "fast|opus|v1";
+const BAKE_V = "fast|opus|v2";   // bumped with codec v2: same words = a different song now
 const keyOf = (s) => s.words.join("-");
 const bakeKey = (s) => keyOf(s) + "|" + BAKE_V;
 
@@ -1201,6 +1201,7 @@ function DayPage({ name, date, words }) {
         const url = URL.createObjectURL(rec.blob);
         urlsRef.current.push(url);
         patchBake(keyOf(s), { status: "ready", url, notes: rec.notes, displayCues: rec.displayCues, duration: rec.duration, ext: rec.ext });
+        playIfWantReady();
       }
     })();
     return () => {
@@ -1224,14 +1225,26 @@ function DayPage({ name, date, words }) {
       const url = URL.createObjectURL(enc.blob);
       urlsRef.current.push(url);
       patchBake(k, { status: "ready", prog: 1, url, notes: rec.notes, displayCues: rec.displayCues, duration: rec.duration, ext: rec.ext });
-      if (qRef.current.want === k) {
-        qRef.current.want = null;
-        wantPlayRef.current = true;
-        setCurrentIdx(i);
-      }
+      playIfWantReady();
     } catch (e) {
       console.error("[daysong] bake failed:", s.title, e);
       patchBake(k, { status: "error" });
+    }
+  };
+
+  // Honor a pending "play this when it's ready" — called after a bake lands,
+  // after IDB hydration, and when the queue drains. (Without the hydration
+  // call there's a race: press play before the cache loads and the queue
+  // finds nothing to bake, so the wanted song would never start.)
+  const playIfWantReady = () => {
+    const w = qRef.current.want;
+    if (!w) return;
+    const i = songs.findIndex((s) => keyOf(s) === w);
+    const st = bakesRef.current[w];
+    if (i >= 0 && st && st.status === "ready") {
+      qRef.current.want = null;
+      wantPlayRef.current = true;
+      setCurrentIdx(i);
     }
   };
 
@@ -1254,6 +1267,7 @@ function DayPage({ name, date, words }) {
           }
           await bakeSong(next);
         }
+        playIfWantReady();
       } finally {
         qRef.current.running = false;
         setBaking(false);
@@ -1295,10 +1309,11 @@ function DayPage({ name, date, words }) {
     }
   }, [curUrl, currentIdx]);
 
+  // play ALL: when a song ends, move on — and after the twelfth, loop back to
+  // the first, so the day's music just keeps going.
   const onEnded = () => {
     setPlaying(false);
-    const i = currentIdxRef.current;
-    if (i + 1 < songs.length) play(i + 1);
+    play((currentIdxRef.current + 1) % songs.length);
   };
 
   const togglePlay = () => {
@@ -1423,7 +1438,7 @@ function DayPage({ name, date, words }) {
               <LightViz notes={curBake ? curBake.notes : null} audioRef={audioRef} bgHue={hues.bgHue} accentHue={hues.accentHue} className="w-full h-24 md:h-28" />
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <button className="btn text-white border-0 btn-circle shadow-sm" style={{ background: accent }} onClick={togglePlay}
-                  data-help={allReady || baking ? "Play / pause (space)" : "Bake all twelve — plays the moment the first song lands"}>
+                  data-help={allReady || baking ? "Play all / pause — loops all day (space)" : "Bake all twelve — playback starts with the first song, then loops all day"}>
                   {playing ? <Pause size={18} /> : <Play size={18} className="translate-x-[1px]" />}
                 </button>
                 {cur && (
@@ -1682,7 +1697,7 @@ function StarsPage() {
       {curUrl && (
         <audio key={curUrl} ref={audioRef} src={curUrl}
           onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-          onEnded={() => { setPlaying(false); const i = currentIdxRef.current; if (i + 1 < songs.length) play(i + 1); }} />
+          onEnded={() => { setPlaying(false); if (songs.length) play((currentIdxRef.current + 1) % songs.length); }} />
       )}
       <div className="max-w-2xl mx-auto">
         <a href={`#/${savedName}/${today}`} className="btn btn-ghost btn-sm gap-1.5 opacity-60 hover:opacity-100 -ml-3" data-help="Back to today">

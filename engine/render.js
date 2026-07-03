@@ -13,6 +13,10 @@ const REVERB_TAIL = 4.2;      // seconds appended so note/reverb tails ring out
 const REVERB_IR = 3.2;        // convolver impulse length (see makeImpulse)
 const SEG_MIN = 30;           // songs shorter than this render in one shot
 
+// params.percKit === 'tabla' swaps the drum kit at the I/O boundary — the
+// composer still writes kick/snare/hat patterns; they land on tabla strokes.
+const TABLA_KIT = { tabla: { kick: 'tablaGe', snare: 'tablaNa', hat: 'tablaTin', hatOpen: 'tablaTin', shaker: 'tablaTin' } };
+
 
 // Render one window [a, b) (+ tail on the final segment) into raw PCM.
 // Returns { channels:[Float32Array,Float32Array], length, sampleRate }.
@@ -71,7 +75,7 @@ export async function renderSegment(params, seg, composed) {
   for (const e of scheduled) {
     if (e.t < start || e.t >= b) continue;
     const lt = (Math.round(e.t * sr) - startSamp) / sr;
-    if (e.voice === 'perc') { playPerc(lt, e.type, e.vel * Math.pow(P.mix.perc, 0.5)); continue; }
+    if (e.voice === 'perc') { playPerc(lt, TABLA_KIT[P.percKit] ? (TABLA_KIT[P.percKit][e.type] || e.type) : e.type, e.vel * Math.pow(P.mix.perc, 0.5)); continue; }
     const freq = midiToFreq(e.midi);
     if (e.voice === 'lead') playLead(lt, freq, e.durSec, e.vel, P, noteRnd(seed, e.t, e.midi));
     else if (e.voice === 'counter') playCounter(lt, freq, e.durSec, e.vel);
@@ -112,7 +116,11 @@ export async function renderSong(params, opts = {}) {
   const onProgress = opts.onProgress || (() => {});
   const fast = !!opts.fast;
   const sr = opts.sampleRate || (fast ? 24000 : RENDER_SR);
-  const revSec = opts.reverbSeconds != null ? opts.reverbSeconds : (fast ? 1.4 : REVERB_IR);
+  // per-song room size (params.reverbSec) — Fast mode scales it down
+  const roomSec = params && params.reverbSec != null ? params.reverbSec : null;
+  const revSec = opts.reverbSeconds != null ? opts.reverbSeconds
+    : roomSec != null ? (fast ? Math.min(1.8, Math.max(0.9, roomSec * 0.45)) : roomSec)
+    : (fast ? 1.4 : REVERB_IR);
   const revMono = opts.reverbMono != null ? opts.reverbMono : fast;
   const tailSec = revSec + 1.0;
   onProgress({ phase: 'composing', progress: 0 });
