@@ -24,6 +24,10 @@ import {
   Coffee,
   SkipBack,
   SkipForward,
+  Star,
+  SlidersHorizontal,
+  UserX,
+  Check,
 } from "https://esm.sh/lucide-react@0.460.0?external=react";
 import * as engine from "engine";
 
@@ -51,7 +55,7 @@ const ARC_OPTS = [
 ];
 const LEAD_OPTS = [
   ["glass", "Glass (FM bell)"], ["reed", "Reed (filtered saw)"], ["breath", "Breath (flute-ish)"],
-  ["pluck", "Pluck (string)"], ["keys", "Keys (electric piano)"], ["brass", "Brass (swelling saw)"],
+  ["keys", "Keys (electric piano)"], ["brass", "Brass (swelling saw)"],
   ["organ", "Organ (drawbars)"], ["pure", "Pure (sine)"],
 ];
 const PAD_OPTS = [
@@ -191,6 +195,7 @@ function parseHash() {
   if (s0 === "about") return { route: "about" };
   if (s0 === "roster") return { route: "roster" };
   if (s0 === "p" && segs[1]) return { route: "shared", words: segs[1].toLowerCase() };
+  if (s0 === "stars") return { route: "stars" };
   if (s0 === "studio" || s0 === "song") {
     const seedSeg = s0 === "song" ? segs[1] : null;
     const q = new URLSearchParams(queryStr);
@@ -628,7 +633,7 @@ function Studio({ params, setParams, seed, setSeed }) {
       mixLead: R(55, 95), mixCounter: Math.random() < 0.2 ? 0 : R(30, 80), mixPad: R(35, 85),
       mixArp: Math.random() < 0.2 ? 0 : R(25, 80), mixBass: R(50, 90),
       mixPerc: Math.random() < 0.25 ? 0 : R(35, 85),
-      leadTimbre: pick(["glass", "reed", "breath", "pluck", "keys", "brass", "organ", "pure"]),
+      leadTimbre: pick(["glass", "reed", "breath", "keys", "brass", "organ", "pure"]),
       padTimbre: pick(["warm", "halo", "choir", "strings", "hollow"]),
       reverb: R(25, 70), echo: R(5, 55),
     }));
@@ -691,7 +696,6 @@ const ROSTER = [
       { id: "lead-glass",  voice: "lead", timbre: "glass",  name: "Glass",  tag: "FM bell",        desc: "Bright metallic bell with a glassy shimmer (FM synthesis)." },
       { id: "lead-reed",   voice: "lead", timbre: "reed",   name: "Reed",   tag: "filtered saw",   desc: "A woody, reedy tone — sawtooth through a swept lowpass, with vibrato." },
       { id: "lead-breath", voice: "lead", timbre: "breath", name: "Breath", tag: "flute-ish",      desc: "Airy and hollow — twin oscillators plus breath noise and vibrato." },
-      { id: "lead-pluck",  voice: "lead", timbre: "pluck",  name: "Pluck",  tag: "string model",   desc: "A physically-modelled plucked string (Karplus–Strong)." },
       { id: "lead-keys",   voice: "lead", timbre: "keys",   name: "Keys",   tag: "electric piano", desc: "An FM electric piano with a bell-like tine — a Rhodes." },
       { id: "lead-brass",  voice: "lead", timbre: "brass",  name: "Brass",  tag: "swelling saw",   desc: "Detuned saws that swell in with a filter sweep — a brass section." },
       { id: "lead-organ",  voice: "lead", timbre: "organ",  name: "Organ",  tag: "drawbars",       desc: "Additive drawbar organ — stacked harmonic partials." },
@@ -873,6 +877,25 @@ const BAKE_V = "fast|opus|v1";
 const keyOf = (s) => s.words.join("-");
 const bakeKey = (s) => keyOf(s) + "|" + BAKE_V;
 
+// ---- starred songs (localStorage; their bakes survive pruning) ----
+const STARS_LS = "daysong.stars.v1";
+const loadStars = () => { try { return JSON.parse(localStorage.getItem(STARS_LS) || "[]"); } catch (_) { return []; } };
+const saveStars = (arr) => { try { localStorage.setItem(STARS_LS, JSON.stringify(arr)); } catch (_) {} };
+function useStars() {
+  const [stars, setStars] = useState(loadStars);
+  const starredSet = useMemo(() => new Set(stars.map((s) => s.words)), [stars]);
+  const toggleStar = (song) => {
+    const w = Array.isArray(song.words) ? song.words.join("-") : song.words;
+    setStars((prev) => {
+      const has = prev.some((s) => s.words === w);
+      const next = has ? prev.filter((s) => s.words !== w) : [...prev, { words: w, title: song.title, ts: Date.now() }];
+      saveStars(next);
+      return next;
+    });
+  };
+  return { stars, starredSet, toggleStar };
+}
+
 // ---- tiny IndexedDB promise wrappers (store "songs", out-of-line keys) ----
 let _dbP = null;
 function idb() {
@@ -904,16 +927,18 @@ async function idbPut(key, val) {
     });
   } catch (_) {}
 }
-async function idbPrune(days = 2) {          // keep today + yesterday
+async function idbPrune(days = 2) {          // keep today + yesterday…
   try {
     const db = await idb();
     const cutoff = Date.now() - days * 864e5;
+    const starred = new Set(loadStars().map((s) => s.words));   // …and starred bakes forever
     const st = db.transaction("songs", "readwrite").objectStore("songs");
     const req = st.openCursor();
     req.onsuccess = () => {
       const c = req.result;
       if (!c) return;
-      if (((c.value && c.value.ts) || 0) < cutoff) c.delete();
+      const words = String(c.key).split("|")[0];
+      if (((c.value && c.value.ts) || 0) < cutoff && !starred.has(words)) c.delete();
       c.continue();
     };
   } catch (_) {}
@@ -948,8 +973,11 @@ function MoodBackdrop({ bgHue, accentHue, audioRef, tempo }) {
   return <div ref={ref} className="ds-backdrop" style={{ "--bgh": bgHue, "--ach": accentHue }} />;
 }
 
-/* The piano-roll canvas, reused from the studio (data-only inputs). */
-function DayViz({ notes, audioRef, className }) {
+/* The day pages' own light visualization — no dark stage. Translucent card
+   over the identity backdrop; note colors are picked from the page's hues
+   (accent family + the complement of the background wash). The studio keeps
+   the original dark engine viz. */
+function LightViz({ notes, audioRef, bgHue, accentHue, className }) {
   const ref = useRef(null);
   useEffect(() => {
     const canvas = ref.current;
@@ -957,20 +985,59 @@ function DayViz({ notes, audioRef, className }) {
     let cx = engine.fitCanvas(canvas);
     const onResize = () => { cx = engine.fitCanvas(canvas); };
     window.addEventListener("resize", onResize);
+    const comp = (bgHue + 180) % 360;                    // complement of the wash
+    const COLORS = {
+      lead:    `hsl(${accentHue} 62% 42%)`,
+      counter: `hsl(${(accentHue + 40) % 360} 52% 52%)`,
+      arp:     `hsl(${comp} 55% 52%)`,
+      bass:    `hsl(${(comp + 30) % 360} 48% 42%)`,
+      pad:     `hsl(${bgHue} 45% 62%)`,
+      perc:    `hsl(${bgHue} 12% 55%)`,
+    };
     let raf;
     const loop = () => {
       const a = audioRef.current;
-      engine.drawViz(canvas, cx, {
-        notes: notes || [], now: a ? a.currentTime : 0,
-        analyser: null, playing: !!(a && !a.paused && !a.ended),
-      });
+      const now = a ? a.currentTime : 0;
+      const playing = !!(a && !a.paused && !a.ended);
+      const r = canvas.getBoundingClientRect();
+      const W = r.width, H = r.height;
+      cx.clearRect(0, 0, W, H);
+      const pxPerSec = W / 18;
+      const playheadX = W * 0.68;
+      const midiToY = (m) => H - ((m - 30) / 66) * (H - 14) - 7;
+      for (const n of notes || []) {
+        const x = playheadX + (n.t - now) * pxPerSec;
+        if (n.voice === "perc") {
+          if (x < -4 || x > W + 4) continue;
+          cx.globalAlpha = 0.45;
+          cx.fillStyle = COLORS.perc;
+          cx.beginPath(); cx.arc(x, H - 6, 1.4, 0, 7); cx.fill();
+          cx.globalAlpha = 1;
+          continue;
+        }
+        const w = Math.max(3, n.dur * pxPerSec - 2);
+        if (x + w < 0 || x > W) continue;
+        const y = midiToY(n.midi);
+        const active = now >= n.t && now <= n.t + n.dur;
+        const h = n.voice === "pad" ? 3 : active ? 5.5 : 4;
+        cx.fillStyle = COLORS[n.voice] || COLORS.lead;
+        cx.globalAlpha = active ? 0.95 : n.t > now ? 0.3 : 0.55;
+        cx.beginPath();
+        if (cx.roundRect) cx.roundRect(x, y - h / 2, w, h, h / 2); else cx.rect(x, y - h / 2, w, h);
+        cx.fill();
+        cx.globalAlpha = 1;
+      }
+      if (playing) {
+        cx.fillStyle = `hsl(${accentHue} 60% 42% / 0.35)`;
+        cx.fillRect(playheadX - 0.5, 4, 1, H - 8);
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); };
-  }, [notes]);
+  }, [notes, bgHue, accentHue]);
   return (
-    <div className={`relative rounded-2xl overflow-hidden shadow-sm ${className || ""}`} style={{ background: "linear-gradient(180deg,#0b0e14,#121826)" }}>
+    <div className={`rounded-2xl border border-white/60 bg-white/30 overflow-hidden ${className || ""}`}>
       <canvas ref={ref} className="block w-full h-full" />
     </div>
   );
@@ -1011,18 +1078,23 @@ const EqBars = ({ accent }) => (
 --------------------------------------------------------------------- */
 function Landing() {
   const [val, setVal] = useState("");
+  const [hueName, setHueName] = useState("");   // debounced — colors settle after you stop typing
   const today = engine.dateCode();
   useEffect(() => {
     let saved = null;
     try { saved = localStorage.getItem(NAME_LS); } catch (_) {}
     if (saved) location.replace(location.href.split("#")[0] + `#/${saved}/${today}`);
   }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setHueName(val), 550);
+    return () => clearTimeout(t);
+  }, [val]);
   const go = () => {
     const name = engine.normalizeName(val);
     try { localStorage.setItem(NAME_LS, name); } catch (_) {}
     location.hash = `#/${name}/${today}`;
   };
-  const hues = engine.identityHues(val || "daysong", today);
+  const hues = engine.identityHues(hueName || "daysong", today);
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
       <MoodBackdrop bgHue={hues.bgHue} accentHue={hues.accentHue} audioRef={{ current: null }} />
@@ -1041,13 +1113,14 @@ function Landing() {
             style={{ borderColor: accentCss(hues.accentHue), caretColor: accentCss(hues.accentHue) }}
           />
           <p className="mt-4 text-sm text-base-content/50">
-            press <kbd className="kbd kbd-xs">enter</kbd> — twelve songs will be composed just for you, just for today.
+            press <kbd className="kbd kbd-xs">enter</kbd> — your background work music, made for today.
           </p>
         </div>
-        <p className="mt-16 text-xs text-base-content/35 ds-up flex gap-4" style={{ animationDelay: "1.1s" }}>
-          <a className="hover:underline" href="#/about">about</a>
-          <a className="hover:underline" href="#/roster">voices</a>
-          <a className="hover:underline" href="#/studio">studio</a>
+        <p className="mt-16 ds-up flex gap-1.5 text-base-content/35" style={{ animationDelay: "1.1s" }}>
+          <a className="btn btn-ghost btn-xs btn-square" href="#/about" data-help="About Daysong"><Info size={14} /></a>
+          <a className="btn btn-ghost btn-xs btn-square" href="#/roster" data-help="The voices"><AudioLines size={14} /></a>
+          <a className="btn btn-ghost btn-xs btn-square" href="#/studio" data-help="The studio — every raw knob"><SlidersHorizontal size={14} /></a>
+          <a className="btn btn-ghost btn-xs btn-square" href="#/stars" data-help="Your starred songs"><Star size={14} /></a>
         </p>
       </div>
     </div>
@@ -1064,6 +1137,16 @@ function DayPage({ name, date, words }) {
   const hues = useMemo(() => engine.identityHues(name, date), [name, date]);
   const accent = accentCss(hues.accentHue);
   const seenKey = `daysong.seen.${name}.${date}`;
+  const { starredSet, toggleStar } = useStars();
+  const starBtn = (song, size = 15) => (
+    <button
+      className="btn btn-ghost btn-xs btn-square"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleStar(song); }}
+      data-help={starredSet.has(keyOf(song)) ? "Unstar" : "Star — keep this song around"}
+    >
+      <Star size={size} style={starredSet.has(keyOf(song)) ? { fill: accent, color: accent } : { color: "currentColor", opacity: 0.45 }} />
+    </button>
+  );
 
   const [bakes, setBakesState] = useState({});
   const bakesRef = useRef({});
@@ -1274,14 +1357,14 @@ function DayPage({ name, date, words }) {
             <p className="text-[11px] tracking-[0.3em] uppercase text-base-content/40">{name} · {prettyDate(date)}</p>
             <h1 className="ds-serif text-4xl md:text-5xl font-light mt-2" style={{ color: accent }}>{solo.title}</h1>
           </div>
-          <DayViz notes={isCur && curBake ? curBake.notes : sb.notes} audioRef={isCur ? audioRef : { current: null }} className="w-full h-[44vh] ds-up" />
+          <LightViz notes={isCur && curBake ? curBake.notes : sb.notes} audioRef={isCur ? audioRef : { current: null }} bgHue={hues.bgHue} accentHue={hues.accentHue} className="w-full h-[22vh] ds-up" />
           <div className="w-full max-w-xl flex flex-col items-center gap-4 ds-up">
             {isCur && curUrl ? <MiniMeter audioRef={audioRef} dur={curBake.duration} accent={accent} /> : null}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {sb.status === "baking" ? (
                 <span className="flex items-center gap-3 text-sm text-base-content/60">
                   <span className="loading loading-ring loading-sm" style={{ color: accent }} />
-                  baking… {Math.round((sb.prog || 0) * 100)}% — <Coffee size={14} className="inline" /> have a coffee
+                  {Math.round((sb.prog || 0) * 100)}% — <Coffee size={14} className="inline" />
                 </span>
               ) : (
                 <button
@@ -1293,12 +1376,13 @@ function DayPage({ name, date, words }) {
                   {isCur && playing ? <Pause size={22} /> : <Play size={22} className="translate-x-[1.5px]" />}
                 </button>
               )}
-              <button className="btn btn-ghost btn-sm gap-1.5" onClick={() => share(solo)} data-help="Copy a link to just this song — your playlist stays private">
-                <LinkIcon size={14} /> {copied ? "copied!" : "share"}
+              <button className="btn btn-ghost btn-sm btn-square" onClick={() => share(solo)} data-help="Copy a link to just this song — your playlist stays private">
+                {copied ? <Check size={15} style={{ color: accent }} /> : <LinkIcon size={15} />}
               </button>
+              {starBtn(solo)}
               {sb.status === "ready" && (
-                <a className="btn btn-ghost btn-sm gap-1.5" href={sb.url} download={`daysong-${keyOf(solo)}.${sb.ext || "opus"}`} data-help="Download this song">
-                  <Download size={14} /> keep
+                <a className="btn btn-ghost btn-sm btn-square" href={sb.url} download={`daysong-${keyOf(solo)}.${sb.ext || "opus"}`} data-help="Download this song">
+                  <Download size={15} />
                 </a>
               )}
             </div>
@@ -1311,7 +1395,7 @@ function DayPage({ name, date, words }) {
         <header className="ds-up">
           <p className="text-[11px] tracking-[0.3em] uppercase" style={{ color: accent }}>{prettyDate(date)}</p>
           <h1 className="ds-serif text-5xl font-light mt-1.5">{name}’s daysong</h1>
-          <p className="text-sm text-base-content/50 mt-2">twelve songs that exist for no one else, and never again after today.</p>
+          <p className="text-sm text-base-content/50 mt-2">your background work music — just for today.</p>
         </header>
 
         {reveal === "creating" ? (
@@ -1325,18 +1409,12 @@ function DayPage({ name, date, words }) {
           <>
             {/* transport + viz */}
             <div className="mt-7 ds-up" style={{ animationDelay: "0.1s" }}>
-              <DayViz notes={curBake ? curBake.notes : null} audioRef={audioRef} className="w-full h-44 md:h-52" />
-              <div className="mt-3 flex items-center gap-2.5 flex-wrap">
-                {!allReady && !baking && (
-                  <button className="btn text-white border-0 gap-2 shadow-sm" style={{ background: accent }} onClick={bakeAndPlay} data-help="Render + encode all twelve; playback starts the moment the first song is done">
-                    <Wand2 size={16} /> bake & play
-                  </button>
-                )}
-                {(allReady || baking) && (
-                  <button className="btn text-white border-0 btn-circle shadow-sm" style={{ background: accent }} onClick={togglePlay} data-help="Play / pause (space)">
-                    {playing ? <Pause size={18} /> : <Play size={18} className="translate-x-[1px]" />}
-                  </button>
-                )}
+              <LightViz notes={curBake ? curBake.notes : null} audioRef={audioRef} bgHue={hues.bgHue} accentHue={hues.accentHue} className="w-full h-24 md:h-28" />
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <button className="btn text-white border-0 btn-circle shadow-sm" style={{ background: accent }} onClick={togglePlay}
+                  data-help={allReady || baking ? "Play / pause (space)" : "Bake all twelve — plays the moment the first song lands"}>
+                  {playing ? <Pause size={18} /> : <Play size={18} className="translate-x-[1px]" />}
+                </button>
                 {cur && (
                   <>
                     <button className="btn btn-ghost btn-sm btn-circle" disabled={currentIdx <= 0} onClick={() => play(currentIdx - 1)} data-help="Previous song"><SkipBack size={16} /></button>
@@ -1345,12 +1423,11 @@ function DayPage({ name, date, words }) {
                   </>
                 )}
                 {baking && (
-                  <span className="flex items-center gap-2 text-sm text-base-content/55 ml-auto">
+                  <span className="flex items-center gap-2 text-sm text-base-content/55 ml-auto" data-help="Baking continues in the background">
                     <Coffee size={15} style={{ color: accent }} />
-                    go have a coffee — baking your songs… {readyCount}/{songs.length}
+                    go have a coffee — {readyCount}/{songs.length}
                   </span>
                 )}
-                {allReady && !baking && <span className="text-xs text-base-content/40 ml-auto">all twelve baked — they’re yours till midnight</span>}
               </div>
             </div>
 
@@ -1372,6 +1449,7 @@ function DayPage({ name, date, words }) {
                       <span className={`ds-serif text-lg flex-1 truncate ${isCurRow ? "" : "group-hover:translate-x-1"} transition-transform`} style={isCurRow ? { color: accent } : null}>
                         {s.title}
                       </span>
+                      {starBtn(s, 14)}
                       <span className="text-xs tabular-nums text-base-content/40">{fmtTime(s.lengthSec)}</span>
                       <span className="w-8 flex justify-center">
                         {isCurRow && playing ? <EqBars accent={accent} />
@@ -1386,11 +1464,12 @@ function DayPage({ name, date, words }) {
               })}
             </ol>
 
-            <footer className="mt-10 pb-6 flex gap-4 text-xs text-base-content/35 ds-up" style={{ animationDelay: "0.8s" }}>
-              <a className="hover:underline" href="#/about">about</a>
-              <a className="hover:underline" href="#/roster">voices</a>
-              <a className="hover:underline" href="#/studio">studio</a>
-              <a className="hover:underline ml-auto" href="#/" onClick={() => { try { localStorage.removeItem(NAME_LS); } catch (_) {} }}>not {name}?</a>
+            <footer className="mt-10 pb-6 flex gap-1.5 text-base-content/40 ds-up" style={{ animationDelay: "0.8s" }}>
+              <a className="btn btn-ghost btn-xs btn-square" href="#/about" data-help="About Daysong"><Info size={14} /></a>
+              <a className="btn btn-ghost btn-xs btn-square" href="#/roster" data-help="The voices"><AudioLines size={14} /></a>
+              <a className="btn btn-ghost btn-xs btn-square" href="#/studio" data-help="The studio — every raw knob"><SlidersHorizontal size={14} /></a>
+              <a className="btn btn-ghost btn-xs btn-square" href="#/stars" data-help="Your starred songs"><Star size={14} /></a>
+              <a className="btn btn-ghost btn-xs btn-square ml-auto" href="#/" onClick={() => { try { localStorage.removeItem(NAME_LS); } catch (_) {} }} data-help={`Not ${name}? Start over`}><UserX size={14} /></a>
             </footer>
           </>
         )}
@@ -1413,6 +1492,7 @@ function SharedPage({ words }) {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
   const wantPlayRef = useRef(false);
+  const { starredSet, toggleStar } = useStars();
 
   useEffect(() => {
     if (!song) return;
@@ -1475,7 +1555,7 @@ function SharedPage({ words }) {
           <p className="text-[11px] tracking-[0.3em] uppercase text-base-content/40">someone sent you a song</p>
           <h1 className="ds-serif text-4xl md:text-5xl font-light mt-2" style={{ color: accent }}>{song.title}</h1>
         </div>
-        <DayViz notes={bake.notes} audioRef={audioRef} className="w-full h-[44vh] ds-up" />
+        <LightViz notes={bake.notes} audioRef={audioRef} bgHue={hues.bgHue} accentHue={hues.accentHue} className="w-full h-[22vh] ds-up" />
         <div className="w-full max-w-xl flex flex-col items-center gap-4 ds-up">
           {bake.status === "ready" && <MiniMeter audioRef={audioRef} dur={bake.duration} accent={accent} />}
           {bake.status === "baking" ? (
@@ -1484,9 +1564,14 @@ function SharedPage({ words }) {
               baking this song in your browser… {Math.round((bake.prog || 0) * 100)}%
             </span>
           ) : (
-            <button className="btn btn-circle btn-lg text-white border-0 shadow-md" style={{ background: accent }} onClick={togglePlay} data-help="Bake (render in your browser), then play">
-              {playing ? <Pause size={22} /> : <Play size={22} className="translate-x-[1.5px]" />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button className="btn btn-circle btn-lg text-white border-0 shadow-md" style={{ background: accent }} onClick={togglePlay} data-help="Bake (render in your browser), then play">
+                {playing ? <Pause size={22} /> : <Play size={22} className="translate-x-[1.5px]" />}
+              </button>
+              <button className="btn btn-ghost btn-sm btn-square" onClick={() => toggleStar(song)} data-help={starredSet.has(words) ? "Unstar" : "Star — keep this song around"}>
+                <Star size={15} style={starredSet.has(words) ? { fill: accent, color: accent } : { opacity: 0.45 }} />
+              </button>
+            </div>
           )}
           <a className="text-xs text-base-content/40 hover:underline" href="#/">what’s a daysong? get your own twelve →</a>
         </div>
@@ -1495,6 +1580,157 @@ function SharedPage({ words }) {
         <audio key={bake.url} ref={audioRef} src={bake.url}
           onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
       )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------
+   #/stars — everything you starred, playable in place. Starred bakes are
+   never pruned from the IndexedDB cache.
+--------------------------------------------------------------------- */
+function StarsPage() {
+  const { stars, toggleStar } = useStars();
+  const songs = useMemo(() => stars.map((s) => engine.decodeSong(s.words)).filter(Boolean), [stars]);
+  const today = engine.dateCode();
+  let savedName = "daysong";
+  try { savedName = localStorage.getItem(NAME_LS) || "daysong"; } catch (_) {}
+  const hues = engine.identityHues(savedName, today);
+  const accent = accentCss(hues.accentHue);
+
+  const [bakes, setBakesState] = useState({});
+  const bakesRef = useRef({});
+  const patch = (k, p) => {
+    bakesRef.current = { ...bakesRef.current, [k]: { ...(bakesRef.current[k] || {}), ...p } };
+    setBakesState(bakesRef.current);
+  };
+  const [currentIdx, setCurrentIdx] = useState(-1);
+  const currentIdxRef = useRef(-1);
+  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef(null);
+  const busyRef = useRef(false);
+  const wantPlayRef = useRef(false);
+
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      for (const s of songs) {
+        const rec = await idbGet(bakeKey(s));
+        if (dead) return;
+        if (rec) patch(keyOf(s), { status: "ready", url: URL.createObjectURL(rec.blob), notes: rec.notes, duration: rec.duration, ext: rec.ext });
+      }
+    })();
+    return () => { dead = true; if (audioRef.current) audioRef.current.pause(); };
+  }, []);
+
+  const play = async (i) => {
+    const s = songs[i];
+    if (!s) return;
+    const k = keyOf(s);
+    const st = bakesRef.current[k];
+    if (st && st.status === "ready") {
+      if (i === currentIdxRef.current && audioRef.current) {
+        const a = audioRef.current;
+        if (a.paused) a.play().catch(() => {}); else a.pause();
+        return;
+      }
+      wantPlayRef.current = true;
+      setCurrentIdx(i);
+      return;
+    }
+    if (busyRef.current || (st && st.status === "baking")) return;
+    busyRef.current = true;
+    patch(k, { status: "baking", prog: 0 });
+    try {
+      const rendered = await engine.renderSong(s.params, { fast: true, onProgress: ({ progress }) => patch(k, { prog: progress || 0 }) });
+      const enc = await engine.encodeSong(rendered.audioBuffer, "opus", { onProgress: () => {} });
+      idbPut(bakeKey(s), { blob: enc.blob, ext: enc.ext, notes: rendered.notes, displayCues: rendered.displayCues, duration: rendered.duration, ts: Date.now() });
+      patch(k, { status: "ready", prog: 1, url: URL.createObjectURL(enc.blob), notes: rendered.notes, duration: rendered.duration, ext: enc.ext });
+      wantPlayRef.current = true;
+      setCurrentIdx(i);
+    } catch (e) {
+      console.error("[daysong] bake failed", e);
+      patch(k, { status: "error" });
+    }
+    busyRef.current = false;
+  };
+
+  const cur = currentIdx >= 0 ? songs[currentIdx] : null;
+  const curBake = cur ? bakes[keyOf(cur)] : null;
+  const curUrl = curBake && curBake.status === "ready" ? curBake.url : null;
+  useEffect(() => {
+    if (wantPlayRef.current && curUrl && audioRef.current) {
+      wantPlayRef.current = false;
+      audioRef.current.play().catch(() => {});
+    }
+  }, [curUrl, currentIdx]);
+
+  return (
+    <div className="min-h-screen px-6 py-10">
+      <MoodBackdrop bgHue={hues.bgHue} accentHue={hues.accentHue} audioRef={audioRef} tempo={cur ? cur.params.tempo : 110} />
+      {curUrl && (
+        <audio key={curUrl} ref={audioRef} src={curUrl}
+          onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+          onEnded={() => { setPlaying(false); const i = currentIdxRef.current; if (i + 1 < songs.length) play(i + 1); }} />
+      )}
+      <div className="max-w-2xl mx-auto">
+        <a href={`#/${savedName}/${today}`} className="btn btn-ghost btn-sm gap-1.5 opacity-60 hover:opacity-100 -ml-3" data-help="Back to today">
+          <ArrowLeft size={15} /> today
+        </a>
+        <header className="ds-up mt-3">
+          <h1 className="ds-serif text-5xl font-light flex items-center gap-3">
+            starred <Star size={26} style={{ fill: accent, color: accent }} />
+          </h1>
+          <p className="text-sm text-base-content/50 mt-2">songs you kept — their bakes stick around.</p>
+        </header>
+        {songs.length > 0 && (
+          <div className="mt-6 ds-up">
+            <LightViz notes={curBake ? curBake.notes : null} audioRef={audioRef} bgHue={hues.bgHue} accentHue={hues.accentHue} className="w-full h-24 md:h-28" />
+          </div>
+        )}
+        {songs.length === 0 ? (
+          <p className="ds-serif text-xl text-base-content/45 mt-16 text-center ds-up">
+            nothing starred yet — tap the <Star size={16} className="inline -mt-1" /> on any song.
+          </p>
+        ) : (
+          <ol className="mt-4 divide-y divide-base-content/5">
+            {songs.map((s, i) => {
+              const st = bakes[keyOf(s)] || {};
+              const isCurRow = i === currentIdx;
+              return (
+                <li key={s.code} className="ds-up" style={{ animationDelay: `${0.08 + i * 0.04}s` }}>
+                  <div
+                    role="button" tabIndex={0}
+                    onClick={() => play(i)}
+                    onKeyDown={(e) => { if (e.key === "Enter") play(i); }}
+                    className="group w-full text-left flex items-center gap-4 py-3 px-2 rounded-lg transition-colors cursor-pointer"
+                    style={isCurRow ? { background: `hsl(${hues.accentHue} 60% 95% / 0.75)` } : null}
+                    data-help={st.status === "ready" ? "Play / pause" : "Bake, then play"}
+                  >
+                    <span className="text-xs tabular-nums text-base-content/35 w-6 text-right">{String(i + 1).padStart(2, "0")}</span>
+                    <span className={`ds-serif text-lg flex-1 truncate ${isCurRow ? "" : "group-hover:translate-x-1"} transition-transform`} style={isCurRow ? { color: accent } : null}>
+                      {s.title}
+                    </span>
+                    <a className="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100" href={`#/p/${keyOf(s)}`}
+                      onClick={(e) => e.stopPropagation()} data-help="Open this song's page"><LinkIcon size={13} /></a>
+                    <button className="btn btn-ghost btn-xs btn-square" onClick={(e) => { e.stopPropagation(); toggleStar(s); }} data-help="Unstar">
+                      <Star size={14} style={{ fill: accent, color: accent }} />
+                    </button>
+                    <span className="text-xs tabular-nums text-base-content/40">{fmtTime(s.lengthSec)}</span>
+                    <span className="w-8 flex justify-center">
+                      {isCurRow && playing ? <EqBars accent={accent} />
+                        : st.status === "baking" ? <span className="ds-baking inline-block w-2 h-2 rounded-full" style={{ background: accent }} />
+                        : st.status === "ready" ? <span className="inline-block w-2 h-2 rounded-full" style={{ background: accent, opacity: 0.85 }} />
+                        : st.status === "error" ? <span className="text-error text-xs">!</span>
+                        : <span className="inline-block w-2 h-2 rounded-full border border-base-content/25" />}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }
@@ -1525,6 +1761,7 @@ function App() {
         : nav.route === "roster" ? <Roster backHash="#/" />
         : nav.route === "studio" ? <StudioRoute key={`studio-${nav.seed}`} init={nav} />
         : nav.route === "shared" ? <SharedPage key={nav.words} words={nav.words} />
+        : nav.route === "stars" ? <StarsPage key="stars" />
         : nav.route === "day" ? <DayPage key={`${nav.name}/${nav.date}`} name={nav.name} date={nav.date} words={nav.words} />
         : <Landing />}
     </>

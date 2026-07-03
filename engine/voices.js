@@ -97,25 +97,6 @@ export function playLead(t, freq, dur, vel, P, rnd) {
     o1.start(t); o2.start(t); vib.start(t);
     o1.stop(t + dur + 0.2); o2.stop(t + dur + 0.2); vib.stop(t + dur + 0.2);
     scrap(o1, [g, o2, o2g, vib, vibG, bp, bg]);
-  } else if (timbre === 'pluck') { // Karplus-Strong
-    const burst = noiseSource(t, Math.min(0.05, 2 / freq + 0.005));
-    const dl = A.ctx.createDelay(0.1);
-    dl.delayTime.value = 1 / freq;
-    const lp = A.ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = clamp(freq * 9, 1200, 9500);
-    lp.Q.value = -6;   // dB: no resonance peak - keeps the feedback loop gain < 1 (stable)
-    const fbg = A.ctx.createGain();
-    fbg.gain.value = clamp(0.975 - freq / 18000, 0.88, 0.975);
-    const g = A.ctx.createGain();
-    g.gain.setValueAtTime(0.34 * vel, t);
-    g.gain.setValueAtTime(0.34 * vel, t + Math.max(0.05, dur));
-    g.gain.linearRampToValueAtTime(0, t + dur + 0.3);
-    burst.connect(dl);
-    dl.connect(lp); lp.connect(fbg); fbg.connect(dl);
-    lp.connect(g); g.connect(bus); g.connect(A.nodes.echoIn);
-    const ms = (t - A.ctx.currentTime + dur + 0.9) * 1000;
-    setTimeout(() => { for (const n of [dl, lp, fbg, g]) { try { n.disconnect(); } catch (e) {} } }, Math.max(50, ms));
   } else if (timbre === 'keys') { // FM electric piano
     const car = A.ctx.createOscillator();
     car.frequency.value = freq;

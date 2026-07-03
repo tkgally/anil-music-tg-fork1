@@ -24,13 +24,17 @@ export const CODE_MODES = ['ionian', 'lydian', 'mixolydian', 'dorian']; // the g
 export const CODE_ARCS = ['arch', 'ascent', 'waves', 'twinPeaks'];
 export const CODE_LENGTHS = [120, 150, 180, 210];
 export const CODE_SWINGS = [0, 0.08, 0.12, 0.16];
-// 16 lead slots, frozen. Slots 8-13 are reserved for instruments that are
-// already designed but not yet merged; until then they fall back per
-// AVAILABLE_LEADS (only hand-typed URLs can reach them — the generator
-// emits 0..GEN_LEADS-1).
+// 16 lead slots, frozen — slot NAMES never change (the table is part of the
+// URL contract). Slots 8-13 are reserved for instruments that are already
+// designed but not yet merged. Whether a slot is *playable today* is
+// AVAILABLE_LEADS; a retired voice keeps its slot and remaps via
+// RETIRED_LEADS ('pluck' retired 2026-07 — sounded bad; its songs now play
+// keys). GEN_LEADS stays 8 so the code bit-stream (and every existing
+// playlist) is unchanged.
 export const LEAD_TABLE = ['glass', 'reed', 'breath', 'pluck', 'keys', 'brass', 'organ', 'pure',
   'bansuri', 'whistle', 'santoor', 'sarangi', 'shehnai', 'harmonium', 'glass', 'breath'];
-export const AVAILABLE_LEADS = new Set(['glass', 'reed', 'breath', 'pluck', 'keys', 'brass', 'organ', 'pure']);
+export const AVAILABLE_LEADS = new Set(['glass', 'reed', 'breath', 'keys', 'brass', 'organ', 'pure']);
+export const RETIRED_LEADS = { pluck: 'keys' };
 export const GEN_LEADS = 8;
 export const PAD_TABLE = ['warm', 'halo', 'choir', 'strings', 'hollow', 'tanpura', 'warm', 'halo'];
 export const AVAILABLE_PADS = new Set(['warm', 'halo', 'choir', 'strings', 'hollow']);
@@ -92,7 +96,9 @@ export function decodeSong(input) {
   const rng = new RNG(fold(code) ^ 0x9e3779b9);
   const e = f.energy / 7;                                  // 0..1 energy macro
 
-  const leadName = LEAD_TABLE[f.lead];
+  let leadName = LEAD_TABLE[f.lead];
+  if (!AVAILABLE_LEADS.has(leadName)) leadName = LEAD_TABLE[f.lead % 8];          // reserved slot
+  if (!AVAILABLE_LEADS.has(leadName)) leadName = RETIRED_LEADS[leadName] || 'glass'; // retired voice
   const padName = PAD_TABLE[f.pad];
   const params = {
     tempo: TEMPOS[f.tempo],
@@ -120,7 +126,7 @@ export function decodeSong(input) {
       bass: rng.range(0.68, 0.85),
       perc: clamp(0.50 + 0.22 * e + rng.range(-0.03, 0.03), 0, 1),
     },
-    leadTimbre: AVAILABLE_LEADS.has(leadName) ? leadName : LEAD_TABLE[f.lead % 8],
+    leadTimbre: leadName,
     padTimbre: AVAILABLE_PADS.has(padName) ? padName : PAD_TABLE[f.pad % 5],
     reverb: rng.range(0.35, 0.55),
     echo: rng.range(0.15, 0.40),

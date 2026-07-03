@@ -21,12 +21,12 @@ if (RECORD) {
   test.browser("record voices golden", async () => recordGolden("voices", await compute()));
 } else {
   test.browser("auditionVoice is deterministic (within tolerance)", async () => {
-    const a = fingerprint(await auditionVoice({ voice: "lead", timbre: "pluck" }, { sampleRate: 44100 }));
-    const b = fingerprint(await auditionVoice({ voice: "lead", timbre: "pluck" }, { sampleRate: 44100 }));
+    const a = fingerprint(await auditionVoice({ voice: "lead", timbre: "keys" }, { sampleRate: 44100 }));
+    const b = fingerprint(await auditionVoice({ voice: "lead", timbre: "keys" }, { sampleRate: 44100 }));
     const e = closeFP(a, b);
     if (e.length) throw new Error(e.join("; "));
   });
-  test.browser("auditionVoice matches golden (all 21 voices)", async () => {
+  test.browser(`auditionVoice matches golden (all ${AUDITION_SPECS.length} voices)`, async () => {
     const got = await compute(), want = await loadGolden("voices");
     for (const k of Object.keys(want)) {
       const errs = closeFP(got[k], want[k]);

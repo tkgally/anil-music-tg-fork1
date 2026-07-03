@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Daysong — a unique generative song, just for you, today</title>
+    <title>Daysong — your background work music, just for today</title>
 
     <!--
       Daysong — reactized. UI chrome is Tailwind (Play CDN) + daisyUI (light
@@ -25,10 +25,16 @@
     <style>
       .ds-serif { font-family: "Fraunces", Georgia, serif; font-optical-sizing: auto; }
 
+      /* registered as real numbers so hue changes ANIMATE (the landing page
+         debounces your name, then glides to your colors) */
+      @property --bgh { syntax: "<number>"; inherits: false; initial-value: 40; }
+      @property --ach { syntax: "<number>"; inherits: false; initial-value: 250; }
+
       /* page identity: --bgh = username hue, --ach = date accent hue,
          --pulse (0..1) breathes with the music */
       .ds-backdrop {
         position: fixed; inset: 0; z-index: -1; pointer-events: none;
+        transition: --bgh 1.4s cubic-bezier(0.4, 0, 0.2, 1), --ach 1.4s cubic-bezier(0.4, 0, 0.2, 1);
         background:
           radial-gradient(1100px 700px at 88% -12%,
             hsl(var(--ach, 250) 85% 78% / calc(0.45 + var(--pulse, 0) * 0.35)), transparent 62%),

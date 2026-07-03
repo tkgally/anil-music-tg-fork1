@@ -32,7 +32,7 @@ export const RENDER_CASES = {
 // Every voice the roster auditions (voice + timbre/percType).
 export const AUDITION_SPECS = [
   { voice: "lead", timbre: "glass" }, { voice: "lead", timbre: "reed" },
-  { voice: "lead", timbre: "breath" }, { voice: "lead", timbre: "pluck" },
+  { voice: "lead", timbre: "breath" },
   { voice: "lead", timbre: "keys" }, { voice: "lead", timbre: "brass" },
   { voice: "lead", timbre: "organ" }, { voice: "lead", timbre: "pure" },
   { voice: "pad", timbre: "warm" }, { voice: "pad", timbre: "halo" },

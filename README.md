@@ -25,8 +25,13 @@ the background (“go have a coffee”). Baked audio is cached in IndexedDB
   visualization (music keeps playing when you move between views).
 - `#/p/<four-words>` — a **shared** song: plays for anyone, but the playlist it
   came from stays private (the name+date → songs hash is one-way).
-- The page wears your colors: background hue from the **name**, accent hue from
-  the **date**, and the backdrop breathes with the music.
+- The page wears your colors: background hue from the **name** (debounced +
+  animated as you type on the landing page), accent hue from the **date**, and
+  the backdrop breathes with the music. The day pages use a light, translucent
+  visualization colored from the page's own hues (the studio keeps the dark one).
+- **Star** any song (★ on rows / song pages) — starred songs live in
+  localStorage, are listed & playable at `#/stars`, and their baked audio is
+  never pruned from the IndexedDB cache.
 - **FROZEN FOREVER (v1):** `engine/wordlist.js`, the bit layout + derivation in
   `engine/songcode.js`, and the playlist hash in `engine/playlist.js` — a URL is
   a song. Tests pin all three.
