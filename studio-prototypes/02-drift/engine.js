@@ -35,21 +35,23 @@ function scrap(src,parts){src.onended=()=>{for(const n of parts){try{n.disconnec
 function hashStr(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);}return h>>>0;}
 
 /* ----- tuning constants (levels chosen against verify.mjs metrics) ----- */
-const TONE_PEAK={'choir-glass':0.17,'glass':0.20,'voices':0.36};
-const BED_LVL=0.13;         // foundation bed — genuinely audible, ~ -26 dBFS in the mix
+const TONE_PEAK={'choir-glass':0.075,'glass':0.089,'voices':0.33}; // voices: formants eat ~7 dB
+const BED_LVL=0.062;        // foundation bed — audible but under the loops, ~ -30 dBFS at the tap
 const AIR_MAX=0.9;          // air texture at slider=100
 const RV_OUT=1.0;
 
 /* ----- palettes (the four presets) ----- */
+/* lvl scales the seeded per-row bus levels; tone trims the synth peak at
+   schedule time — tuned so every preset lands within ±1.5 dB RMS */
 const PALETTES={
   airport:{label:'Airport',notes:[41,45,48,52,55,57,60,64,65,67],
-           perFactor:1.0,timbre:'choir-glass',lvl:1.0,root:41,maxAboveC4:1},
+           perFactor:1.0,timbre:'choir-glass',lvl:1.0,tone:1.0,root:41,maxAboveC4:1},
   undertow:{label:'Undertow',notes:[38,41,45,48,52,55],
-           perFactor:1.4,timbre:'voices',lvl:1.0,root:38,maxAboveC4:0},
+           perFactor:1.4,timbre:'voices',lvl:1.0,tone:1.1,root:38,maxAboveC4:0},
   coldstar:{label:'Cold star',notes:[45,48,52,57,59,60,64,69],
-           perFactor:1.6,timbre:'glass',lvl:0.78,root:45,maxAboveC4:2},
+           perFactor:1.6,timbre:'glass',lvl:0.78,tone:1.4,root:45,maxAboveC4:2},
   morning:{label:'Morning',notes:[43,50,52,55,57,59,62],
-           perFactor:0.8,timbre:'choir-glass',lvl:1.0,root:43,maxAboveC4:1},
+           perFactor:0.8,timbre:'choir-glass',lvl:1.0,tone:1.28,root:43,maxAboveC4:1},
 };
 
 /* ----- layout generation (deterministic: seed + palette + reroll#) ----- */
@@ -94,34 +96,48 @@ function genRows(seed,palKey,ln){
   }
   picks.sort((a,b)=>a-b);
 
-  // periods: shuffled base pool + one extra, jittered, then made incommensurate
+  // periods: shuffled base pool + one extra, jittered, then made incommensurate.
+  // All work happens on 0.1 s-rounded values — rows store tenths, so the
+  // no-simple-ratio guarantee must hold on what actually plays.
+  const round1=x=>Math.round(x*10)/10;
   const per=BASE_PERIODS.slice();
   for(let i=per.length-1;i>0;i--){const j=rng.int(0,i);[per[i],per[j]]=[per[j],per[i]];}
   per.push(rng.range(18,33));
-  for(let i=0;i<per.length;i++) per[i]*=pal.perFactor*(1+rng.range(-0.045,0.045));
-  // make every pair incommensurate: for each row, search outward from its
-  // base value (alternating up/down in ~1% steps) for a spot clear of every
-  // other row; two sweeps re-seat rows the first pass couldn't fully clear,
-  // and a fully-covered range falls back to the least-aligned spot found
-  for(let pass=0;pass<3;pass++){
-    for(let j=(pass?0:1);j<per.length;j++){
-      const others=i=>i!==j&&(pass>0||i<j);
-      let worst=Infinity;
-      for(let i=0;i<per.length;i++) if(others(i)) worst=Math.min(worst,ratioBadness(per[i],per[j]));
-      if(worst>=0.03) continue;
-      const base=per[j];
-      let bestCand=base,bestBad=worst,found=false;
-      for(let k=0;k<=64&&!found;k++){           // stay within ×/÷1.47 of base
-        const off=(k%2?1:-1)*Math.ceil(k/2);   // 0, +1, -1, +2, -2, …
-        const cand=base*Math.pow(1.012,off);
-        if(cand<11||cand>56)continue;
-        let w=Infinity;
-        for(let i=0;i<per.length;i++) if(others(i)) w=Math.min(w,ratioBadness(per[i],cand));
-        if(w>=0.03){bestCand=cand;found=true;}
-        else if(w>bestBad){bestBad=w;bestCand=cand;}
-      }
-      per[j]=bestCand;
+  for(let i=0;i<per.length;i++) per[i]=round1(per[i]*pal.perFactor*(1+rng.range(-0.045,0.045)));
+  // seat(j): search outward from row j's value (alternating up/down in ~1.2%
+  // steps, up to ×/÷1.012^span) for a spot ≥3% clear of every `others` row;
+  // if the whole range is covered, park on the least-aligned spot found
+  const seat=(j,span,others)=>{
+    let bad=Infinity;
+    for(let i=0;i<per.length;i++) if(others(i)) bad=Math.min(bad,ratioBadness(per[i],per[j]));
+    if(bad>=0.03) return true;
+    const base=per[j];
+    let bestCand=base,bestBad=bad;
+    for(let k=0;k<=span;k++){
+      const off=(k%2?1:-1)*Math.ceil(k/2);   // 0, +1, -1, +2, -2, …
+      const cand=round1(base*Math.pow(1.012,off));
+      if(cand<11||cand>56)continue;
+      let w=Infinity;
+      for(let i=0;i<per.length;i++) if(others(i)) w=Math.min(w,ratioBadness(per[i],cand));
+      if(w>bestBad){bestBad=w;bestCand=cand;}
+      if(w>=0.03)break;
     }
+    per[j]=bestCand;
+    return bestBad>=0.03;
+  };
+  for(let pass=0;pass<3;pass++)
+    for(let j=(pass?0:1);j<per.length;j++)
+      seat(j,64,i=>i!==j&&(pass>0||i<j));     // ×/÷1.47 of base
+  // repair: while any pair is still inside the 3% zone, re-seat either member
+  // of the worst pair, searching the whole 11–56 s window — layouts end fully clear
+  for(let rep=0;rep<12;rep++){
+    let a=-1,b=-1,bad=0.03;
+    for(let i=0;i<per.length;i++)for(let j=i+1;j<per.length;j++){
+      const w=ratioBadness(per[i],per[j]);
+      if(w<bad){bad=w;a=i;b=j;}
+    }
+    if(a<0)break;
+    if(!seat(b,280,i=>i!==b)) seat(a,280,i=>i!==a);
   }
 
   const rows=[];
@@ -150,18 +166,24 @@ function genRows(seed,palKey,ln){
 /* ----- audio state ----- */
 let ctx=null,N=null,ST=null,noiseBuf=null;
 let rt=[];                    // per-loop runtime: nextT, q (viz), pending tones
-let runRng=null;              // seeded stream for tape drift + nudges
+let runRng=null;              // seeded stream for phase nudges
 let tickTimer=0;
 let running=false;
+let transT0=0;                // transport origin — fire times are t0-relative
 
-function bind(S){ST=S;if(!runRng)runRng=new RNG(((S.seed>>>0)^0x0badf00d)>>>0);}
+function bind(S){ST=S;runRng=new RNG(((S.seed>>>0)^0x0badf00d)>>>0);}   // re-seed on every bind/seed change
 function paceScale(p){p=clamp(p,0,100);return p<=50?2.0-(p/50):1.0-0.45*((p-50)/50);}
 function effPer(row){return clamp(row.per,4,120)*paceScale(ST?ST.pace:50);}
 function warmCut(w){return 3200*Math.pow(1200/3200,clamp(w,0,100)/100);}
-function driftFactor(){
+function tiltDb(){return clamp(6*(0.7-clamp(ST.vol,0,100)/100),0,5);}   // 0 dB at/above default 70%
+/* tape-drift jitter: a pure function of (seed, layer, cycle) — NOT a shared
+   stream — so which tick a fire falls into (hidden-tab wakes, late timers)
+   can never change the draw order; two loads of one URL stay identical */
+function driftFactor(i,cyc){
   if(!ST.tape)return 1;
   const depth=0.015*(clamp(ST.dd,0,100)/50);
-  return 1+runRng.range(-depth,depth);
+  const u=mulberry32(((ST.seed>>>0)^Math.imul(i+1,0x9E3779B9)^Math.imul((cyc|0)+1,0x85EBCA6B))>>>0)();
+  return 1+depth*(2*u-1);
 }
 
 /* impulse response: decayed noise with a lowpass swept down the tail */
@@ -182,12 +204,17 @@ function initAudio(){
   const agen=mulberry32(((ST.seed>>>0)^0x6d2b79f5)>>>0);
   N={};
 
-  // master chain: sum -> warmth LP -> slow-drift trim -> volume -> comp -> limiter -> analyser
+  // master chain: sum -> warmth LP -> slow-drift trim -> volume -> quiet-listening
+  // tilt -> comp -> limiter -> analyser
   N.preMaster=ctx.createGain();
   N.warmLP=ctx.createBiquadFilter();
   N.warmLP.type='lowpass';N.warmLP.frequency.value=warmCut(ST.warm);N.warmLP.Q.value=0.5;
   N.trim=ctx.createGain();
   N.master=ctx.createGain();N.master.gain.value=0;         // fades in on play
+  // equal-loudness tilt: shelves rise as the volume slider falls (Fletcher–Munson)
+  N.tiltLo=ctx.createBiquadFilter();N.tiltLo.type='lowshelf';N.tiltLo.frequency.value=150;
+  N.tiltHi=ctx.createBiquadFilter();N.tiltHi.type='highshelf';N.tiltHi.frequency.value=8000;
+  N.tiltLo.gain.value=N.tiltHi.gain.value=tiltDb();
   N.comp=ctx.createDynamicsCompressor();
   N.comp.threshold.value=-18;N.comp.knee.value=24;N.comp.ratio.value=2.5;
   N.comp.attack.value=0.01;N.comp.release.value=0.25;
@@ -196,7 +223,8 @@ function initAudio(){
   N.limiter.attack.value=0.001;N.limiter.release.value=0.1;
   N.analyser=ctx.createAnalyser();N.analyser.fftSize=2048;
   N.preMaster.connect(N.warmLP);N.warmLP.connect(N.trim);N.trim.connect(N.master);
-  N.master.connect(N.comp);N.comp.connect(N.limiter);N.limiter.connect(N.analyser);
+  N.master.connect(N.tiltLo);N.tiltLo.connect(N.tiltHi);N.tiltHi.connect(N.comp);
+  N.comp.connect(N.limiter);N.limiter.connect(N.analyser);
   N.analyser.connect(ctx.destination);
 
   // big reverb with ~30 ms predelay; per-bus sends
@@ -277,6 +305,9 @@ function applyLive(){
   if(!ctx)return;
   const now=ctx.currentTime;
   if(running)N.master.gain.setTargetAtTime(Math.pow(clamp(ST.vol,0,100)/100,1.6),now,0.15);
+  const sh=tiltDb();
+  N.tiltLo.gain.setTargetAtTime(sh,now,0.15);
+  N.tiltHi.gain.setTargetAtTime(sh,now,0.15);
   const rm=clamp(ST.rm,0,100)/100;
   N.sendBus.gain.setTargetAtTime(rm,now,0.2);
   N.bedSend.gain.setTargetAtTime(rm*0.5,now,0.2);
@@ -338,7 +369,10 @@ function playTone(t,i,row){
   if(timbre==='glass'){atk=0.8;rel=Math.max(1.2,dur*0.5);}
   else{atk=dur*clamp(ST.atk,5,60)/100;rel=dur*0.45;}
   const sus=Math.max(0.05,dur-atk-rel);
-  const peak=TONE_PEAK[timbre];
+  // sparser palettes (perFactor > 1) fire less often, so their tones run
+  // slightly hotter — keeps all presets within the ±1.5 dB level contract
+  const pal=PALETTES[ST.pal]||PALETTES.airport;
+  const peak=TONE_PEAK[timbre]*Math.sqrt(pal.perFactor)*pal.tone;
   const stop=t+atk+sus+rel*1.6;
   const g=swellGain(t,atk,sus,rel,peak);
   g.connect(L.lg);
@@ -390,12 +424,13 @@ function playTone(t,i,row){
 /* ----- scheduler ----- */
 function startTransport(){
   const t0=ctx.currentTime+0.15;
+  transT0=t0;
   rt=[];
   for(let i=0;i<8;i++){
     const row=ST.rows[i];
     const p=effPer(row);
     const nextT=t0+(row.phase%p);
-    rt.push({nextT,q:[],prevFire:nextT-p,lastFire:-9,pending:[]});
+    rt.push({nextT,cyc:0,q:[],prevFire:nextT-p,lastFire:-9,pending:[]});
   }
   tickTimer=setInterval(tick,500);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});
@@ -417,16 +452,19 @@ function tick(){
     const st=rt[i],row=ST.rows[i];
     if(!st||!row)continue;
     st.pending=st.pending.filter(h=>h.stop>now);
-    if(i>=nAct){ // parked loops keep their phase marching silently
-      while(st.nextT<now){st.prevFire=st.nextT;st.nextT+=effPer(row);}
+    // prune fire-time history here too — draw() only runs while visible,
+    // so a hidden tab would otherwise grow st.q without bound
+    while(st.q.length&&st.q[0]<=now-2){st.prevFire=st.q.shift();st.lastFire=st.prevFire;}
+    if(i>=nAct||row.mute){ // parked/muted loops keep their phase marching silently
+      while(st.nextT<now){st.prevFire=st.nextT;st.nextT+=effPer(row)*driftFactor(i,st.cyc++);}
       continue;
     }
     // woke late: skip the missed fires — no catch-up burst (bed carries the room)
-    while(st.nextT<now-0.05){st.prevFire=st.nextT;st.nextT+=effPer(row)*driftFactor();}
+    while(st.nextT<now-0.05){st.prevFire=st.nextT;st.nextT+=effPer(row)*driftFactor(i,st.cyc++);}
     while(st.nextT<now+horizon){
       st.pending.push(playTone(st.nextT,i,row));
       st.q.push(st.nextT);
-      st.nextT+=effPer(row)*driftFactor();
+      st.nextT+=effPer(row)*driftFactor(i,st.cyc++);
     }
   }
 }
@@ -457,6 +495,7 @@ function onLayout(){
     const p=effPer(row);
     st.nextT=now+0.4+(row.phase%p)*0.5;
     st.prevFire=st.nextT-p;
+    st.cyc=0;                     // fresh layout restarts the drift sequence
   }
   applyLive();
   tick();
@@ -474,6 +513,7 @@ function nudgePhases(){
     const p=effPer(row);
     st.nextT=now+runRng.range(0.3,p);
     st.prevFire=st.nextT-p;
+    st.cyc=0;
   }
   tick();
 }
@@ -515,6 +555,7 @@ const D=window.Drift={
   bind,play,pause,toggle,applyLive,onLayout,nudgePhases,rebuildReverb,repeatHorizon,effPer,
   isPlaying:()=>running,
   now:()=>ctx?ctx.currentTime:0,
+  t0:()=>transT0,
   rt:()=>rt,
   analyser:()=>N?N.analyser:null,
   onPlayState:null,

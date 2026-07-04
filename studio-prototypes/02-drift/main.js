@@ -245,7 +245,7 @@ function statusTick(){
   else if(h<0n)rep='all loops muted';
   else rep='pattern repeats in ≈ '+humanize(h);
   const t=D.now();
-  const tail=(t>0||D.isPlaying())?'running '+fmtTime(t):'press play';
+  const tail=D.isPlaying()?'running '+fmtTime(t):(t>0?'paused '+fmtTime(t):'press play');
   const txt=active+(active===1?' loop':' loops')+' · '+rep+' · '+tail;
   if(txt!==lastStatus){$('#status').textContent=txt;lastStatus=txt;}
 }
@@ -381,16 +381,18 @@ function wireAdvanced(){
 
   $('#seed').addEventListener('change',()=>{
     const v=Math.max(1,Math.min(999999,Math.round(+$('#seed').value)||1));
-    S.seed=v;regenRows();D.onLayout();D.applyLive();
+    S.seed=v;D.bind(S);regenRows();D.onLayout();D.applyLive();
     syncUI();statusTick();persist();
   });
   $('#reroll').addEventListener('click',()=>{
-    S.seed=randSeed();regenRows();D.onLayout();D.applyLive();
+    S.seed=randSeed();D.bind(S);regenRows();D.onLayout();D.applyLive();
     syncUI();statusTick();persist();
   });
   $('#reset').addEventListener('click',()=>{
+    const prevRs=S.rs;
     S=freshState();
     D.bind(S);D.onLayout();D.applyLive();
+    if(S.rs!==prevRs)D.rebuildReverb();   // the audible room must match the display
     syncUI();statusTick();
     try{localStorage.removeItem(STORE_KEY);}catch(e){}
     try{history.replaceState(null,'',location.pathname);}catch(e){}
