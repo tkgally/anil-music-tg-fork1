@@ -1,0 +1,77 @@
+/* 01 · Tides — shared prototype look, accent = deep teal */
+:root{--bg:#101318;--panel:#171b22;--panel2:#1c212b;--text:#cfd6e0;--muted:#7d8794;
+--line:#232a34;--accent:#4fb8a8;--radius:12px;font-size:15px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+line-height:1.5;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:920px;margin:0 auto;padding:28px 20px 60px;}
+a{color:var(--accent);text-decoration:none;}
+h1{font-size:1.5rem;font-weight:650;letter-spacing:.01em;}
+.concept{color:var(--muted);margin-top:4px;max-width:60ch;}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+padding:18px;margin-top:18px;}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px 22px;}
+.ctl label{display:flex;justify-content:space-between;font-size:.85rem;font-weight:600;align-items:center;}
+.ctl .desc{font-size:.78rem;color:var(--muted);margin-top:2px;}
+.ctl output{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:500;}
+input[type=range]{width:100%;accent-color:var(--accent);height:22px;}
+select,input[type=number]{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+border-radius:8px;padding:4px 8px;font:inherit;font-size:.85rem;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:999px;
+padding:5px 14px;font-size:.82rem;cursor:pointer;}
+.chip.on{border-color:var(--accent);color:var(--accent);}
+button{cursor:pointer;font:inherit;}
+.advanced summary{cursor:pointer;color:var(--muted);font-size:.85rem;letter-spacing:.08em;
+text-transform:uppercase;}
+.advanced[open] summary{color:var(--text);}
+.group-h{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+margin:16px 0 8px;}
+.status{color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums;
+margin-top:8px;min-height:1.4em;padding:0 4px;}
+footer{color:var(--muted);font-size:.78rem;margin-top:26px;text-align:center;}
+
+/* ----- header ----- */
+.head-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;}
+.hub{font-size:.82rem;color:var(--muted);}
+.hub:hover{color:var(--accent);}
+
+/* ----- transport ----- */
+.transport{display:flex;align-items:center;gap:18px;position:sticky;top:10px;z-index:5;
+box-shadow:0 6px 24px rgba(0,0,0,.35);}
+#play{width:56px;height:56px;border-radius:50%;flex:none;border:1px solid var(--line);
+background:var(--panel2);color:var(--accent);display:flex;align-items:center;justify-content:center;
+transition:border-color .2s, box-shadow .2s;}
+#play:hover{border-color:var(--accent);}
+#play[aria-pressed="true"]{box-shadow:0 0 0 1px var(--accent), 0 0 18px rgba(79,184,168,.25);}
+.clock{font-variant-numeric:tabular-nums;font-size:1.05rem;color:var(--text);min-width:3.2em;}
+.vol{flex:1;min-width:140px;max-width:280px;margin-left:auto;}
+.vol label{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);font-weight:600;}
+
+/* ----- viz ----- */
+#viz{display:block;width:100%;height:150px;margin-top:18px;border-radius:var(--radius);
+border:1px solid var(--line);background:#0c0f13;}
+
+/* ----- simple panel ----- */
+.ctl.hero{margin:18px 0 16px;}
+.ctl.hero label{font-size:1rem;}
+.ctl.hero input[type=range]{height:30px;}
+.ctl.hero .desc{font-size:.82rem;}
+
+/* ----- advanced ----- */
+.checks{display:flex;flex-direction:column;gap:6px;justify-content:center;}
+.ctl label.chk{display:flex;justify-content:flex-start;gap:8px;align-items:center;
+font-size:.85rem;font-weight:500;cursor:pointer;}
+.chk input{accent-color:var(--accent);}
+.chk .hint{color:var(--muted);font-weight:400;font-size:.78rem;}
+.mixhead{display:flex;gap:8px;align-items:center;}
+.mixhead>input{accent-color:var(--accent);cursor:pointer;flex:none;}
+.mixhead label{flex:1;}
+.seedline{display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap;}
+.seedline input{width:110px;}
+
+@media (max-width:720px){
+  .transport{gap:12px;}
+  .vol{max-width:none;}
+  .controls{grid-template-columns:1fr;}
+}

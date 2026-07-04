@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01 · Tides — drones that breathe</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="head-row">
+      <h1>01 · Tides</h1>
+      <a class="hub" href="../index.html">&larr; all five prototypes</a>
+    </div>
+    <p class="concept">A drone chord that breathes like the sea: no melody in front,
+    just slow swells of warmth and light, drifting one voice at a time.</p>
+  </header>
+
+  <section class="panel transport" aria-label="transport">
+    <button id="play" data-play aria-pressed="false" aria-label="play or pause" title="play / pause (space)">
+      <svg id="icon-play" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+        <path d="M8 5.5v13l11-6.5z" fill="currentColor"/>
+      </svg>
+      <svg id="icon-pause" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" style="display:none">
+        <path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z" fill="currentColor"/>
+      </svg>
+    </button>
+    <div class="clock" id="clock" aria-label="elapsed time">0:00</div>
+    <div class="vol">
+      <label for="volume">volume <output id="volume-out">70</output></label>
+      <input type="range" id="volume" min="0" max="100" value="70" step="1">
+    </div>
+  </section>
+
+  <canvas id="viz" height="150" aria-label="waterline visualization"></canvas>
+  <div class="status" id="status">press play — the tide is out</div>
+
+  <section class="panel" aria-label="simple controls">
+    <div class="chips" id="presets" role="group" aria-label="presets">
+      <button class="chip" data-preset="still">Still water</button>
+      <button class="chip" data-preset="open">Open sea</button>
+      <button class="chip" data-preset="kelp">Kelp forest</button>
+      <button class="chip" data-preset="first">First light</button>
+    </div>
+
+    <div class="ctl hero">
+      <label for="depth">Depth <output id="depth-out"></output></label>
+      <div class="desc">dark ocean floor &harr; bright surface — how much light gets into the sound</div>
+      <input type="range" id="depth" min="0" max="100" step="1">
+    </div>
+
+    <div class="controls">
+      <div class="ctl">
+        <label for="swell">Swell <output id="swell-out"></output></label>
+        <div class="desc">how heavy the sea is — still pond to slow rolling waves</div>
+        <input type="range" id="swell" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="tide">Tide <output id="tide-out"></output></label>
+        <div class="desc">how fast the water breathes</div>
+        <input type="range" id="tide" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="drift">Drift <output id="drift-out"></output></label>
+        <div class="desc">how often the harmony moves (takes effect as the next drift)</div>
+        <input type="range" id="drift" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="texture">Texture <output id="texture-out"></output></label>
+        <div class="desc">foam — a soft wash of filtered noise riding the waves</div>
+        <input type="range" id="texture" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="glints">Glints <output id="glints-out"></output></label>
+        <div class="desc">rare soft bells on the surface — 0 is fully off</div>
+        <input type="range" id="glints" min="0" max="100" step="1">
+      </div>
+    </div>
+  </section>
+
+  <details class="advanced panel">
+    <summary>Advanced</summary>
+
+    <div class="group-h">Harmony</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="root">Root</label>
+        <div class="desc">pedal note under everything (applies at next drift)</div>
+        <select id="root"></select>
+      </div>
+      <div class="ctl">
+        <label for="mode">Mode</label>
+        <div class="desc">color of the scale (applies at next drift)</div>
+        <select id="mode">
+          <option value="dorian">dorian</option>
+          <option value="aeolian">aeolian</option>
+          <option value="mixolydian">mixolydian</option>
+          <option value="lydian">lydian</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label for="seventh">Seventh color <output id="seventh-out"></output></label>
+        <div class="desc">how often chords carry a seventh</div>
+        <input type="range" id="seventh" min="0" max="100" step="1">
+      </div>
+      <div class="ctl checks">
+        <label class="chk"><input type="checkbox" id="sus"> sus voicings</label>
+        <label class="chk"><input type="checkbox" id="quartal"> quartal voicing</label>
+        <label class="chk"><input type="checkbox" id="ji"> just intonation <span class="hint">(off = equal temperament)</span></label>
+      </div>
+    </div>
+
+    <div class="group-h">Bed</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="voices">Bed voices <output id="voices-out"></output></label>
+        <div class="desc">how many drone voices hold the chord</div>
+        <input type="range" id="voices" min="3" max="7" step="1">
+      </div>
+      <div class="ctl">
+        <label for="detune">Detune spread <output id="detune-out"></output></label>
+        <div class="desc">cents between paired oscillators — the slow shimmer</div>
+        <input type="range" id="detune" min="0" max="14" step="0.5">
+      </div>
+      <div class="ctl">
+        <label for="glide">Voice glide <output id="glide-out"></output></label>
+        <div class="desc">how slowly a voice slides to its new note</div>
+        <input type="range" id="glide" min="1" max="12" step="0.5">
+      </div>
+      <div class="ctl">
+        <label for="width">Stereo width <output id="width-out"></output></label>
+        <div class="desc">spread of the voices across the stereo field</div>
+        <input type="range" id="width" min="0" max="100" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Waves</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="lfoa">Wave A period <output id="lfoa-out"></output></label>
+        <div class="desc">seconds — drives the bed filter and the foam</div>
+        <input type="range" id="lfoa" min="8" max="120" step="1">
+      </div>
+      <div class="ctl">
+        <label for="lfob">Wave B period <output id="lfob-out"></output></label>
+        <div class="desc">seconds — drives the bed loudness swell</div>
+        <input type="range" id="lfob" min="8" max="120" step="1">
+      </div>
+      <div class="ctl">
+        <label for="lfoc">Wave C period <output id="lfoc-out"></output></label>
+        <div class="desc">seconds — drives the stereo tilt and sub breathing</div>
+        <input type="range" id="lfoc" min="8" max="120" step="1">
+      </div>
+      <div class="ctl">
+        <label for="foamhz">Foam center <output id="foamhz-out"></output></label>
+        <div class="desc">where the noise wash sits in the spectrum</div>
+        <input type="range" id="foamhz" min="300" max="2000" step="10">
+      </div>
+      <div class="ctl checks">
+        <label class="chk"><input type="checkbox" id="voicemask"> voice-masking foam <span class="hint">(helps cover voices around you)</span></label>
+      </div>
+    </div>
+
+    <div class="group-h">Mixer</div>
+    <div class="controls">
+      <div class="ctl">
+        <div class="mixhead">
+          <input type="checkbox" id="mutesub" title="mute sub" aria-label="mute sub">
+          <label for="mixsub">Sub <output id="mixsub-out"></output></label>
+        </div>
+        <div class="desc">the deep sine an octave below the bed</div>
+        <input type="range" id="mixsub" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <div class="mixhead">
+          <input type="checkbox" id="mutebed" title="mute bed" aria-label="mute bed">
+          <label for="mixbed">Bed <output id="mixbed-out"></output></label>
+        </div>
+        <div class="desc">the drone chord itself</div>
+        <input type="range" id="mixbed" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <div class="mixhead">
+          <input type="checkbox" id="mutefoam" title="mute foam" aria-label="mute foam">
+          <label for="mixfoam">Foam <output id="mixfoam-out"></output></label>
+        </div>
+        <div class="desc">the noise wash</div>
+        <input type="range" id="mixfoam" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <div class="mixhead">
+          <input type="checkbox" id="muteglints" title="mute glints" aria-label="mute glints">
+          <label for="mixglints">Glints <output id="mixglints-out"></output></label>
+        </div>
+        <div class="desc">the bells</div>
+        <input type="range" id="mixglints" min="0" max="100" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Space</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="rsize">Reverb size <output id="rsize-out"></output></label>
+        <div class="desc">seconds of tail (rebuilds at the next drift)</div>
+        <input type="range" id="rsize" min="2" max="5" step="0.1">
+      </div>
+      <div class="ctl">
+        <label for="rmix">Reverb mix <output id="rmix-out"></output></label>
+        <div class="desc">how much of everything feeds the hall</div>
+        <input type="range" id="rmix" min="0" max="100" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Seed</div>
+    <div class="controls">
+      <div class="ctl seedrow">
+        <label for="seed">Seed</label>
+        <div class="desc">same seed = same piece; defaults to today's date</div>
+        <div class="seedline">
+          <input type="number" id="seed" min="0" step="1">
+          <button id="reroll" class="chip" title="reroll seed" aria-label="reroll seed">&#10226;</button>
+          <button id="reset" class="chip" title="reset all settings">reset to defaults</button>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <footer>space = play/pause · all settings apply live (harmony moves at the next drift) · runs entirely in your browser</footer>
+</div>
+
+<script src="theory.js"></script>
+<script src="audio.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
