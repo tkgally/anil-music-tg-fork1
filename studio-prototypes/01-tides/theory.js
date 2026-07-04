@@ -84,8 +84,13 @@ function chordLabel(chord, rootPc) {
   else if (chord.kind === 'quartal') q = ' 4ths';
   else {
     const third = chord.offs[1] - chord.offs[0];
-    q = third === 3 ? 'm' : '';
-    if (chord.withSeventh) q += 7;
+    const fifth = chord.offs[2] - chord.offs[0];
+    if (third === 3 && fifth === 6) {              // 3+3 stack (lydian °vii etc.)
+      q = chord.withSeventh ? 'ø7' : 'dim';
+    } else {
+      q = third === 3 ? 'm' : '';
+      if (chord.withSeventh) q += 7;
+    }
   }
   return NOTE_NAMES[pc] + q;
 }

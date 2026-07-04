@@ -19,9 +19,10 @@ const Tides = {
   ctx: null, playing: false, everPlayed: false,
   P: null, prevP: null,
   nodes: {}, voices: [],
-  palette: null, chord: null, chordName: '—',
+  palette: null, chord: null, chordName: '—', chordMode: 'dorian',
+  labelQueue: [],                                 // {t, name, mode} — status commits when audible
   pedalHz: 110, rootPc: 9, modeName: 'dorian',
-  pendingKey: null, reverbDirty: false,
+  pendingKey: null, reverbDirty: false, reverbSwapAt: null,
   rngC: null, rngG: null, rngV: null,            // chord / glint / voice streams
   retargets: [],                                  // {t, idx, freq}
   driftTimes: [], nextDriftTime: 0, nextGlintTime: 0,
@@ -82,9 +83,15 @@ Tides.build = function () {
   this.pedalHz = this.pedalFor(P.root);
   this.seedStreams(P.seed);
 
-  /* master chain: volume -> glue -> limiter -> analyser -> out */
+  /* master chain: volume -> quiet-listening tilt -> glue -> limiter -> analyser -> out */
   N.master = ctx.createGain();
   N.master.gain.value = 0;
+  /* equal-loudness tilt: shelf gains rise as the volume slider falls
+     (Fletcher–Munson — quiet listening loses bass and treble) */
+  N.tiltLow = ctx.createBiquadFilter();
+  N.tiltLow.type = 'lowshelf'; N.tiltLow.frequency.value = 150; N.tiltLow.gain.value = 0;
+  N.tiltHigh = ctx.createBiquadFilter();
+  N.tiltHigh.type = 'highshelf'; N.tiltHigh.frequency.value = 8000; N.tiltHigh.gain.value = 0;
   N.comp = ctx.createDynamicsCompressor();
   N.comp.threshold.value = -18; N.comp.knee.value = 24; N.comp.ratio.value = 2.5;
   N.comp.attack.value = 0.01; N.comp.release.value = 0.25;
@@ -93,7 +100,8 @@ Tides.build = function () {
   N.limiter.attack.value = 0.001; N.limiter.release.value = 0.1;
   N.analyser = ctx.createAnalyser();
   N.analyser.fftSize = 2048;
-  N.master.connect(N.comp); N.comp.connect(N.limiter);
+  N.master.connect(N.tiltLow); N.tiltLow.connect(N.tiltHigh);
+  N.tiltHigh.connect(N.comp); N.comp.connect(N.limiter);
   N.limiter.connect(N.analyser); N.analyser.connect(ctx.destination);
 
   /* shared noise (one seeded 2 s loop, Daysong idiom) */
@@ -163,6 +171,7 @@ Tides.build = function () {
   this.palette = buildPalette(this.modeName, { sus: P.sus, quartal: P.quartal });
   this.chord = this.palette[0];                               // open on i
   this.chordName = chordLabel(this.chord, this.rootPc);
+  this.chordMode = this.modeName;
   const targets = voiceTargets(this.chord, this.pedalHz, P.voices, P.ji,
                                this.pedalHz, this.pedalHz * 4.1);
   this.voices = [];
@@ -189,7 +198,7 @@ Tides.makeVoice = function (i, freq) {
   v.walk.connect(v.wgN); v.wgN.connect(v.osc2.detune);
   v.filter = ctx.createBiquadFilter();
   v.filter.type = 'lowpass'; v.filter.Q.value = 0.7;
-  v.filter.frequency.value = clamp(freq * 2.6, 350, 900);     // lower voices darker
+  v.filter.frequency.value = clamp(freq * 2.6, 350, lerp(700, 2200, P.depth / 100)); // lower voices darker; Depth opens the ceiling
   v.gain = ctx.createGain(); v.gain.gain.value = 0;
   v.pan = ctx.createStereoPanner();
   v.spread = (i === 0) ? 0 : (i % 2 ? 1 : -1) * (0.12 + 0.07 * i);  // pedal centered
@@ -215,9 +224,12 @@ Tides.applyParams = function (P, force) {
   const ctx = this.ctx, N = this.nodes, now = ctx.currentTime;
   const set = (param, val, tau) => param.setTargetAtTime(val, now, tau || 0.15);
 
-  /* volume */
+  /* volume + quiet-listening tilt (0 dB at/above the default 70 %) */
   const vol = Math.pow(P.volume / 100, 1.6) * 0.92;
   if (this.playing || this.everPlayed) set(N.master.gain, vol, 0.08);
+  const shelfDb = clamp(6 * (0.7 - P.volume / 100), 0, 5);
+  set(N.tiltLow.gain, shelfDb, 0.08);
+  set(N.tiltHigh.gain, shelfDb, 0.08);
 
   const sw = P.swell / 100;
   const depthCenter = 400 * Math.pow(2600 / 400, P.depth / 100);
@@ -284,12 +296,17 @@ Tides.applyParams = function (P, force) {
   set(N.foamSend.gain, 0.3 * rmix, 0.2);
   set(N.glintSend.gain, 0.6 * rmix, 0.2);
 
-  /* per-voice detune spread + width */
+  /* per-voice detune spread + width (outermost voice caps at ±0.6·width —
+     headphone imaging) + Depth lifting each voice's cutoff ceiling so the
+     macro's top half keeps opening the bed */
+  const vceil = lerp(700, 2200, P.depth / 100);
+  const maxSpread = 0.12 + 0.07 * Math.max(1, this.voices.length - 1);
   for (let i = 0; i < this.voices.length; i++) {
     const v = this.voices[i];
     const cents = P.detune * v.detRatio;
     set(v.osc1.detune, cents, 0.3); set(v.osc2.detune, -cents, 0.3);
-    set(v.pan.pan, v.spread * width * 2.2, 0.2);
+    set(v.pan.pan, clamp(v.spread / maxSpread * 0.6 * width, -0.6, 0.6), 0.2);
+    set(v.filter.frequency, clamp(v.freq * 2.6, 350, vceil), 0.3);
   }
 
   /* ----- structural changes ----- */
@@ -364,6 +381,23 @@ Tides.tick = function () {
   const now = this.ctx.currentTime;
   const horizon = document.hidden ? 12 : 6;
 
+  /* commit status labels only once their drift is actually audible */
+  let due = null;
+  this.labelQueue = this.labelQueue.filter(q => {
+    if (q.t <= now) { if (!due || q.t >= due.t) due = q; return false; }
+    return true;
+  });
+  if (due) { this.chordName = due.name; this.chordMode = due.mode; }
+
+  /* pending reverb swap (tick-driven — setTimeout can stall for minutes
+     in a hidden tab and leave the return ducked) */
+  if (this.reverbSwapAt != null && now >= this.reverbSwapAt) {
+    this.reverbSwapAt = null;
+    this.nodes.convolver.buffer = makeImpulse(this.ctx, new RNG((this.P.seed ^ 0x51ed27) >>> 0),
+                                              this.P.rsize, 3);
+    this.nodes.reverbRet.gain.setTargetAtTime(1, now + 0.05, 0.4);
+  }
+
   /* late wake: never burst-catch-up, just move on */
   if (this.nextDriftTime < now - 0.25) this.nextDriftTime = now + 2;
   if (this.nextGlintTime < now - 0.25) this.nextGlintTime = now + this.glintInterval();
@@ -390,8 +424,9 @@ Tides.tick = function () {
         const tau = this.P.glide;
         v.osc1.frequency.setTargetAtTime(r.freq, Math.max(now, r.t), tau);
         v.osc2.frequency.setTargetAtTime(r.freq, Math.max(now, r.t), tau);
-        v.filter.frequency.setTargetAtTime(clamp(r.freq * 2.6, 350, 900),
-                                           Math.max(now, r.t), tau * 1.2);
+        v.filter.frequency.setTargetAtTime(
+          clamp(r.freq * 2.6, 350, lerp(700, 2200, this.P.depth / 100)),
+          Math.max(now, r.t), tau * 1.2);
         v.freq = r.freq;
       }
       r.dispatched = true;
@@ -425,13 +460,16 @@ Tides.doDrift = function (td) {
   if (this.reverbDirty) { this.reverbDirty = false; this.swapReverb(td); }
 
   this.chord = pickNextChord(this.rngC, this.palette, this.chord, P.seventh / 100);
-  this.chordName = chordLabel(this.chord, this.rootPc);
+  this.labelQueue.push({ t: td, name: chordLabel(this.chord, this.rootPc), mode: this.modeName });
   const n = this.voices.length;
   const targets = voiceTargets(this.chord, this.pedalHz, n, P.ji,
                                this.pedalHz, this.pedalHz * 4.1);
   const assigned = assignVoices(this.voices.map(v => v.freq), targets);
 
-  /* one voice moves at the drift; the rest follow ~7 s apart (seeded order) */
+  /* one voice moves at the drift; the rest follow one by one (seeded order).
+     Spacing shrinks at fast Drift so every voice reaches its chord tone
+     before the next drift drops the queue. */
+  const spacing = Math.min(7, this.driftInterval() / (n + 1));
   const order = [];
   for (let i = 0; i < n; i++) order.push(i);
   for (let i = n - 1; i > 0; i--) {
@@ -442,20 +480,16 @@ Tides.doDrift = function (td) {
   let t = td;
   for (const idx of order) {
     this.queueRetarget(t, idx, assigned[idx]);
-    t += 7 * this.rngC.range(0.85, 1.2);
+    t += spacing * this.rngC.range(0.85, 1.2);
   }
   this.driftTimes.push(td);
 };
 
 Tides.swapReverb = function (td) {
-  const N = this.nodes, ctx = this.ctx;
-  const dt = Math.max(0, td - ctx.currentTime);
-  N.reverbRet.gain.setTargetAtTime(0.0001, td, 0.08);         // dip, swap, restore
-  setTimeout(() => {
-    N.convolver.buffer = makeImpulse(ctx, new RNG((this.P.seed ^ 0x51ed27) >>> 0),
-                                     this.P.rsize, 3);
-    N.reverbRet.gain.setTargetAtTime(1, ctx.currentTime + 0.05, 0.4);
-  }, (dt + 0.4) * 1000);
+  /* dip the return now; tick() performs the swap + restore once td+0.4 has
+     passed (a one-shot setTimeout can be delayed minutes in a hidden tab) */
+  this.nodes.reverbRet.gain.setTargetAtTime(0.0001, td, 0.08);
+  this.reverbSwapAt = td + 0.4;
 };
 
 /* one glint: a bloom, not a pluck — sine + 2.76x partial, 1.2 s attack */

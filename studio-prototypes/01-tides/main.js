@@ -137,6 +137,8 @@ function refreshUI() {
 function changed(fromPreset) {
   if (!fromPreset) { S.preset = ''; refreshChips(); }
   validate(S);
+  const seedEl = $('seed');                        // keep the box honest when
+  if (seedEl && seedEl.value !== String(S.seed)) seedEl.value = S.seed;  // validate() rewrites it
   Tides.applyParams(S);
   save();
 }
@@ -230,7 +232,7 @@ function updateStatus() {
   const secs = Math.floor(Tides.elapsed());
   $('clock').textContent = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
   if (!Tides.everPlayed) { el.textContent = 'press play — the tide is out'; return; }
-  const chord = Tides.chordName + ' (' + Tides.modeName + ')';
+  const chord = Tides.chordName + ' (' + Tides.chordMode + ')';
   if (!Tides.playing) { el.textContent = 'paused · ' + chord; return; }
   const d = Tides.nextDriftIn();
   const meter = meterChar(Tides.lfoValue('A')) + meterChar(Tides.lfoValue('B')) + meterChar(Tides.lfoValue('C'));

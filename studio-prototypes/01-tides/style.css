@@ -64,8 +64,9 @@ border:1px solid var(--line);background:#0c0f13;}
 font-size:.85rem;font-weight:500;cursor:pointer;}
 .chk input{accent-color:var(--accent);}
 .chk .hint{color:var(--muted);font-weight:400;font-size:.78rem;}
-.lname{display:inline-flex;gap:8px;align-items:center;}
-.lname input{accent-color:var(--accent);cursor:pointer;}
+.mixhead{display:flex;gap:8px;align-items:center;}
+.mixhead>input{accent-color:var(--accent);cursor:pointer;flex:none;}
+.mixhead label{flex:1;}
 .seedline{display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap;}
 .seedline input{width:110px;}
 

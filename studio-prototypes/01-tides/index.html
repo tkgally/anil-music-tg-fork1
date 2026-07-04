@@ -166,22 +166,34 @@
     <div class="group-h">Mixer</div>
     <div class="controls">
       <div class="ctl">
-        <label for="mixsub"><span class="lname"><input type="checkbox" id="mutesub" title="mute sub" aria-label="mute sub">Sub</span> <output id="mixsub-out"></output></label>
+        <div class="mixhead">
+          <input type="checkbox" id="mutesub" title="mute sub" aria-label="mute sub">
+          <label for="mixsub">Sub <output id="mixsub-out"></output></label>
+        </div>
         <div class="desc">the deep sine an octave below the bed</div>
         <input type="range" id="mixsub" min="0" max="100" step="1">
       </div>
       <div class="ctl">
-        <label for="mixbed"><span class="lname"><input type="checkbox" id="mutebed" title="mute bed" aria-label="mute bed">Bed</span> <output id="mixbed-out"></output></label>
+        <div class="mixhead">
+          <input type="checkbox" id="mutebed" title="mute bed" aria-label="mute bed">
+          <label for="mixbed">Bed <output id="mixbed-out"></output></label>
+        </div>
         <div class="desc">the drone chord itself</div>
         <input type="range" id="mixbed" min="0" max="100" step="1">
       </div>
       <div class="ctl">
-        <label for="mixfoam"><span class="lname"><input type="checkbox" id="mutefoam" title="mute foam" aria-label="mute foam">Foam</span> <output id="mixfoam-out"></output></label>
+        <div class="mixhead">
+          <input type="checkbox" id="mutefoam" title="mute foam" aria-label="mute foam">
+          <label for="mixfoam">Foam <output id="mixfoam-out"></output></label>
+        </div>
         <div class="desc">the noise wash</div>
         <input type="range" id="mixfoam" min="0" max="100" step="1">
       </div>
       <div class="ctl">
-        <label for="mixglints"><span class="lname"><input type="checkbox" id="muteglints" title="mute glints" aria-label="mute glints">Glints</span> <output id="mixglints-out"></output></label>
+        <div class="mixhead">
+          <input type="checkbox" id="muteglints" title="mute glints" aria-label="mute glints">
+          <label for="mixglints">Glints <output id="mixglints-out"></output></label>
+        </div>
         <div class="desc">the bells</div>
         <input type="range" id="mixglints" min="0" max="100" step="1">
       </div>
