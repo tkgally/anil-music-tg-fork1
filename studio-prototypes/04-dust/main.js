@@ -79,7 +79,8 @@ function validate(s){
   num('basslvl',0,100);num('keyslvl',0,100);num('sidechain',0,100);
   num('wobrate',0.2,1.5);num('wobdepth',0,100);num('crackle',0,100);
   num('masterlp',2000,9000);num('reverb',0,100);
-  s.seed=Math.max(0,Math.floor(Number(s.seed)||todaySeed()));
+  const sd=Math.floor(Number(s.seed));                 // 0 is a valid seed
+  s.seed=(isFinite(sd)&&sd>=0)?sd:todaySeed();
   s.tempo=Math.round(s.tempo);s.key=Math.round(s.key);
   s.melcap=Math.round(s.melcap);s.varbars=Math.round(s.varbars);
   if(!PROGS[s.prog])s.prog='attic';
@@ -131,14 +132,23 @@ function refreshUI(){
 }
 
 function refreshChips(){
+  const mark=(ch,on)=>{
+    ch.classList.toggle('on',on);
+    ch.setAttribute('aria-pressed',on?'true':'false');
+  };
   document.querySelectorAll('#presets .chip').forEach(ch=>
-    ch.classList.toggle('on',ch.dataset.preset===S.preset));
+    mark(ch,ch.dataset.preset===S.preset));
   document.querySelectorAll('#progs .chip').forEach(ch=>
-    ch.classList.toggle('on',ch.dataset.prog===S.prog));
+    mark(ch,ch.dataset.prog===S.prog));
 }
 
 function changed(fromPreset){
-  if(!fromPreset)S.preset='';
+  /* the chip only detaches when a field the presets actually set diverges;
+     volume, seed and the other advanced params keep it */
+  if(!fromPreset&&S.preset){
+    const p=PRESETS[S.preset];
+    if(!p||PRESET_FIELDS.some(f=>String(S[f])!==String(p[f])))S.preset='';
+  }
   validate(S);
   Dust.applyParams(S);
   refreshChips();
@@ -165,7 +175,10 @@ function wire(){
   keySel.addEventListener('change',()=>{S.key=Number(keySel.value);changed(false);});
   $('backbeat').addEventListener('change',()=>{S.backbeat=$('backbeat').value;changed(false);});
   $('seed').addEventListener('change',()=>{
-    S.seed=Math.max(0,Math.floor(Number($('seed').value)||0));changed(false);
+    const raw=$('seed').value.trim();
+    S.seed=raw===''?todaySeed():Number(raw);       // 0 is a valid seed
+    changed(false);                                // validate() vets it
+    $('seed').value=S.seed;                        // input shows the seed in use
   });
 
   $('reroll').addEventListener('click',()=>{
@@ -205,7 +218,7 @@ function wire(){
   document.addEventListener('keydown',e=>{
     if(e.code!=='Space')return;
     const t=e.target,tag=t&&t.tagName;
-    if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA')return;
+    if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||tag==='SUMMARY')return;
     if(t!==playBtn&&tag==='BUTTON')return;
     e.preventDefault();
     toggle();
@@ -268,10 +281,11 @@ function drawViz(){
   const now=Dust.ctx?Dust.ctx.currentTime:0;
   const R=Math.min(h*0.42,w*0.24);
   const rot=2*Math.PI*0.35*Dust.elapsed();
-  /* eccentric wobble: the disc spins slightly off its true center */
+  /* eccentric wobble: the disc center orbits at the tape-wow rate, so the
+     wobble-rate/depth sliders read directly on the record */
   const ecc=Math.min(2.4,0.6+(Dust.wobDepth||1)*0.9);
-  const cx=w*0.5-R*0.55+Math.cos(rot)*ecc;
-  const cy=h*0.5+Math.sin(rot)*ecc*0.7;
+  const cx=w*0.5-R*0.55+Dust.wobbleValue(0.25)*ecc;
+  const cy=h*0.5+Dust.wobbleValue()*ecc*0.7;
 
   /* rain streaks over the whole canvas */
   const rainN=Math.round((S.rain/100)*STREAKS.length);

@@ -317,8 +317,15 @@ Dust.tick=function(){
   const horizon=document.hidden?12:6;
 
   /* late wake: resume on a fresh bar boundary, never burst catch-up
-     (the hiss/rain/keys-tail bed kept sounding, so no hard gap) */
-  if(this.nextBarTime<now-0.05)this.nextBarTime=now+0.25;
+     (the hiss/rain/keys-tail bed kept sounding, so no hard gap);
+     re-enter as a ~1 s swell rather than at full level */
+  if(this.nextBarTime<now-0.05){
+    this.nextBarTime=now+0.25;
+    const mg=this.N.mix.gain;
+    mg.cancelScheduledValues(now);
+    mg.setValueAtTime(Math.min(mg.value,0.15),now);
+    mg.setTargetAtTime(1,now,0.33);              // ~95% in ≈1 s
+  }
   while(this.nextBarTime<now+horizon){
     this.scheduleBar(this.barIndex,this.nextBarTime);
     this.nextBarTime+=this.lastBarDur;
@@ -683,8 +690,8 @@ Dust.cyclePos=function(){                        // 0..1 over the 8-bar cycle
   return ((b.bar%8)+f)/8;
 };
 
-Dust.wobbleValue=function(){                     // wow LFO, tracked analytically
-  if(!this.ctx)return 0;
+Dust.wobbleValue=function(off){                  // wow LFO, tracked analytically
+  if(!this.ctx)return 0;                         // off: cycles, e.g. 0.25 = 90°
   const w=this.wow;
-  return Math.sin(2*Math.PI*(w.phase+w.f*(this.ctx.currentTime-w.t0)));
+  return Math.sin(2*Math.PI*((off||0)+w.phase+w.f*(this.ctx.currentTime-w.t0)));
 };
