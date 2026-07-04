@@ -109,3 +109,10 @@ agent's job, not something to wait to be asked for.
 a free plan, so Pages is disabled** (and that workflow fails on push) — resolve
 hosting before relying on it: make it public, upgrade to Pro, or point a
 free static host (Cloudflare Pages / Netlify / Vercel) at the private repo.
+
+## studio-prototypes/ ↔ docs/ (this fork)
+
+In this fork, GitHub Pages is enabled for **`docs/`**, which is a 1:1 mirror of
+`studio-prototypes/` (the five self-contained background-music studio
+prototypes). **Any change to `studio-prototypes/` must be mirrored to `docs/`**
+— run `bash studio-prototypes/tools/sync-docs.sh` and commit both together.
