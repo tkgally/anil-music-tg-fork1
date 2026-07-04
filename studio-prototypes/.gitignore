@@ -1,4 +1,0 @@
-# Prototypes still being written by in-flight build agents — intentionally
-# untracked until their build completes and passes verification; each entry
-# is removed (and the folder committed) the moment its build lands.
-/05-deepwork/
