@@ -25,8 +25,8 @@ const Pulse = {
   rngPat: null, rngMut: null, rngTick: null, rngNote: null,
   scaleMidis: null, centerIdx: 0,
   scRoot: null, scMode: null, scCenter: null, scSpan: null,
-  pendingReseed: false, curSeed: null,
-  vizEvents: [], flashes: [], noteMarks: [],
+  pendingReseed: false, pendingNudge: false, curSeed: null,
+  vizEvents: [], flashes: [], noteMarks: [], deferred: [],
   elapsedBase: 0, resumeMark: 0, timer: null,
 };
 
@@ -254,7 +254,7 @@ Pulse.applyParams = function (P, force) {
    so presets land within ±1.5 dB of each other (tuned with the harness). */
 Pulse.masterTarget = function () {
   const P = this.P;
-  const matchDb = -(P.energy - 40) * 0.020 - (P.pulse - 30) * 0.004 - (P.tempo - 78) * 0.020;
+  const matchDb = -(P.energy - 40) * 0.025 - (P.pulse - 30) * 0.004 - (P.tempo - 78) * 0.020;
   return Math.pow(P.volume / 100, 1.6) * 1.0 * Math.pow(10, matchDb / 20);
 };
 
@@ -281,14 +281,30 @@ Pulse.tick = function () {
     this.scheduleStep(this.nextStepTime, false);
     this.nextStepTime += this.stepDur;
   }
+  this.flushDeferred(now);
 
   /* prune viz queues */
   this.flashes = this.flashes.filter(f => f.t + 1.4 > now);
   this.noteMarks = this.noteMarks.filter(m => m.t + m.dur + 0.4 > now);
 };
 
+/* Node budget: step events (and every RNG draw) happen a full horizon
+   ahead, but the WebAudio subgraphs are only instantiated once they are
+   within ~2.8 s of sounding — visible tabs tick reliably at 0.5 s, so
+   that is ample margin, and it keeps the live node count modest. Hidden
+   tabs instantiate the whole 12 s horizon (timers get throttled). */
+Pulse.defer = function (t, fn) { this.deferred.push({ t, fn }); };
+Pulse.flushDeferred = function (now) {
+  const win = document.hidden ? 12.5 : 2.8;
+  while (this.deferred.length && this.deferred[0].t < now + win) {
+    const d = this.deferred.shift();
+    if (d.t > now - 0.06) d.fn();       // long-stalled leftovers are skipped, never burst
+  }
+};
+
 Pulse.scheduleStep = function (t, late) {
   const P = this.P;
+  if (this.pendingNudge && !late) { this.pendingNudge = false; this.applyNudge(t); }
   if (this.stepIdx === 0) this.loopBoundary(t, late);
   const s = this.stepIdx;
   const swung = t + (s % 2 === 1 ? P.swing / 100 * this.stepDur : 0);
@@ -296,13 +312,14 @@ Pulse.scheduleStep = function (t, late) {
   /* KEYS — the pattern */
   const slot = this.pattern[s];
   const vJit = this.rngNote.range(-0.04, 0.04);       // draw even when skipping (determinism)
+  const kDet = this.rngNote.range(-2.5, 2.5);
   if (slot && !late) {
     const e = P.energy / 100;
     const acc = s === 0 ? 0.06 : (s === 8 ? 0.04 : 0);
     const vel = clamp(0.30 + 0.20 * e + acc + vJit, 0.1, 0.55);
     const midi = this.slotMidi(slot.deg);
     const dur = slot.dur * this.stepDur;
-    this.epNote(swung, midiToFreq(midi), dur, vel, this.nodes.keys.g, true);
+    this.defer(swung, () => this.epNote(swung, midiToFreq(midi), dur, vel, this.nodes.keys.g, vel >= 0.4, kDet));
     this.noteMarks.push({ t: swung, step: s, dur: Math.min(dur, 1.2), midi });
   }
 
@@ -310,11 +327,13 @@ Pulse.scheduleStep = function (t, late) {
   if (P.canonint !== 'off') {
     const cslot = this.pattern[(s - P.canonoff + 32) % 16];
     const cJit = this.rngNote.range(-0.03, 0.03);
-    if (cslot && !late) {
+    const cDet = this.rngNote.range(-2.5, 2.5);
+    if (cslot && !late && P.canonlvl > 0) {           // silent bus: keep the draws, skip the nodes
       const e = P.energy / 100;
       const vel = clamp(0.28 + 0.17 * e + cJit, 0.1, 0.5);
       const midi = this.slotMidi(cslot.deg) + (P.canonint === 'fifth' ? -7 : -12);
-      this.epNote(swung, midiToFreq(midi), cslot.dur * this.stepDur, vel, this.nodes.canon.g, false);
+      const cdur = cslot.dur * this.stepDur;
+      this.defer(swung, () => this.epNote(swung, midiToFreq(midi), cdur, vel, this.nodes.canon.g, false, cDet));
     }
   }
 
@@ -324,15 +343,19 @@ Pulse.scheduleStep = function (t, late) {
     const jit = this.rngTick.range(0.85, 1.1);
     if (!skip && !late && P.pulse > 0) {
       const droop = 1 - 0.4 * (s / 16);
-      this.playShh(swung, clamp((0.55 + 0.25 * P.energy / 100) * droop * jit, 0, 1));
+      const sv = clamp((0.55 + 0.25 * P.energy / 100) * droop * jit, 0, 1);
+      this.defer(swung, () => this.playShh(swung, sv));
     }
   }
 
   /* BASS — chord root, steps 0 and 8, sustained 8 steps */
-  if ((s === 0 || s === 8) && !late) this.playBass(t, 8 * this.stepDur);
+  if ((s === 0 || s === 8) && !late) {
+    const bdur = 8 * this.stepDur, rootOff = this.chord.rootOff;
+    this.defer(t, () => this.playBass(t, bdur, rootOff));
+  }
 
   /* thump on step 0 only */
-  if (s === 0 && !late && P.pulse > 0) this.playThump(t);
+  if (s === 0 && !late && P.pulse > 0) this.defer(t, () => this.playThump(t));
 
   this.stepIdx = (this.stepIdx + 1) % 16;
 };
@@ -390,17 +413,22 @@ Pulse.loopBoundary = function (t, late) {
   this.loopIdx++;
 };
 
-/* Freeze-proof manual mutation ("Nudge now") */
+/* Freeze-proof manual mutation ("Nudge now"): queued so it lands at the
+   next *unscheduled* step — audio already in the lookahead keeps the old
+   pattern, and the ring flash arrives with the first mutated note (the
+   same audible-time vizEvents path scheduled evolution uses). */
 Pulse.nudgeNow = function () {
-  if (!this.pattern) return;
+  if (this.pattern) this.pendingNudge = true;
+};
+
+Pulse.applyNudge = function (t) {
   const m = mutatePattern(this.rngMut, this.pattern, this.mutOpts());
   if (!m) return;
   this.age++;
-  const now = this.ctx ? this.ctx.currentTime : 0;
-  this.flashes.push({ t: now, slot: m.slot, slot2: m.slot2 });
-  const snap = this.pattern.map(c => c && { deg: c.deg, dur: c.dur });
-  for (const ev of this.vizEvents) { ev.pattern = snap; ev.age = this.age; }   // future loops share it
-  this.vizEvents.unshift({ t: now, pattern: snap, age: this.age });
+  this.flashes.push({ t, slot: m.slot, slot2: m.slot2 });
+  // t is past every queued event (they were scheduled before this step),
+  // so a plain push keeps vizEvents ordered for pumpViz.
+  this.vizEvents.push({ t, pattern: this.pattern.map(c => c && { deg: c.deg, dur: c.dur }), age: this.age });
 };
 
 /* =====================================================================
@@ -408,12 +436,14 @@ Pulse.nudgeNow = function () {
 ===================================================================== */
 
 /* FM electric piano (Daysong `keys`, tamed: mod index x0.6, tine 0.03,
-   8 ms attack, tape wobble on the carrier) */
-Pulse.epNote = function (t, f, dur, vel, bus, tine) {
+   8 ms attack, tape wobble on the carrier). `det` is drawn by the caller
+   (scheduleStep) so the stream stays deterministic across late wakes;
+   callers skip `tine` on soft notes — inaudible sparkle, saved nodes. */
+Pulse.epNote = function (t, f, dur, vel, bus, tine, det) {
   const ctx = this.ctx, N = this.nodes;
   const car = ctx.createOscillator();
   car.frequency.value = f;
-  car.detune.value = this.rngNote.range(-2.5, 2.5);
+  car.detune.value = det || 0;
   const mod = ctx.createOscillator();
   mod.frequency.value = f;
   const mg = ctx.createGain();
@@ -424,8 +454,8 @@ Pulse.epNote = function (t, f, dur, vel, bus, tine) {
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(0.3 * vel, t + 0.008);
-  g.gain.exponentialRampToValueAtTime(1e-4, t + dur + 0.7);
-  g.gain.linearRampToValueAtTime(0, t + dur + 0.75);
+  g.gain.exponentialRampToValueAtTime(1e-4, t + dur + 0.5);
+  g.gain.linearRampToValueAtTime(0, t + dur + 0.55);
   car.connect(g); g.connect(bus);
   const parts = [g, mg, mod];
   if (tine) {
@@ -440,17 +470,19 @@ Pulse.epNote = function (t, f, dur, vel, bus, tine) {
     parts.push(tn, tg);
   }
   car.start(t); mod.start(t);
-  car.stop(t + dur + 0.8); mod.stop(t + dur + 0.8);
+  car.stop(t + dur + 0.6); mod.stop(t + dur + 0.6);
   car.onended = () => {
     try { N.wobGain.disconnect(car.detune); } catch (e) {}
     for (const n of parts) { try { n.disconnect(); } catch (e) {} }
   };
 };
 
-/* BASS: sine + 0.25 saw -> lowpass 180 (chord root, MIDI 33..44) */
-Pulse.playBass = function (t, dur) {
+/* BASS: sine + 0.25 saw -> lowpass 180 (chord root, MIDI 33..44).
+   rootOff is captured at schedule time — the chord may already have
+   advanced (lookahead) by the time the deferred subgraph is built. */
+Pulse.playBass = function (t, dur, rootOff) {
   const ctx = this.ctx, P = this.P;
-  const pcAbs = (P.root + this.chord.rootOff) % 12;
+  const pcAbs = (P.root + rootOff) % 12;
   const midi = 33 + ((pcAbs - 33) % 12 + 12) % 12;
   const f = midiToFreq(midi);
   const vel = 0.5 + 0.15 * P.energy / 100;
@@ -500,15 +532,17 @@ Pulse.scheduleHazeSegment = function (t, durSec, late) {
   }
 };
 
-/* TICK "shh": shared noise -> bandpass 5.2 kHz Q2, soft envelope */
+/* TICK "shh": shared noise -> bandpass 3.5 kHz Q2, soft envelope.
+   Centered just above the default master Brightness lowpass (~2.6 kHz)
+   and hot enough to survive it — audible air, never a hi-hat. */
 Pulse.playShh = function (t, vel) {
   const ctx = this.ctx;
   const n = this.noiseSource(t, 0.16);
   const bp = ctx.createBiquadFilter();
-  bp.type = 'bandpass'; bp.frequency.value = 5200; bp.Q.value = 2;
+  bp.type = 'bandpass'; bp.frequency.value = 3500; bp.Q.value = 2;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.16 * vel, t + 0.02);
+  g.gain.linearRampToValueAtTime(0.4 * vel, t + 0.02);
   g.gain.exponentialRampToValueAtTime(1e-4, t + 0.12);
   g.gain.linearRampToValueAtTime(0, t + 0.14);
   n.connect(bp); bp.connect(g); g.connect(this.nodes.tick.g);

@@ -235,7 +235,7 @@ function wire() {
   document.addEventListener('keydown', e => {
     if (e.code !== 'Space') return;
     const t = e.target, tag = t && t.tagName;
-    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'SUMMARY') return;
     if (t !== playBtn && tag === 'BUTTON') return;
     e.preventDefault();
     toggle();
