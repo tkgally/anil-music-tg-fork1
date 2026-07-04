@@ -238,11 +238,15 @@ DW.applyParams = function (S) {
 };
 
 /* master gain target: volume taper + trim + preset level-matching.
-   The dB terms compensate what Presence/Tempo/Motion add, so the four
-   presets land within ±1.5 dB of each other (tuned with the harness). */
+   The dB terms compensate what Presence/Tempo/Motion add. Loudness grows
+   convexly with presence (counter/arp/perc arrive late), so the linear
+   term alone left mid presence ("Light lift") ~1 dB quiet — the pw()
+   bump lifts the middle. Tuned with the harness at the shared seed:
+   the four presets land within ~0.5 dB of each other. */
 DW.masterTarget = function () {
   const S = this.S;
-  const matchDb = -(S.presence - 25) * 0.035 - (S.tempo - 84) * 0.012 - (S.motion - 35) * 0.004;
+  const matchDb = -(S.presence - 25) * 0.04 + pw(S.presence / 100, 0, 0.45, 0)
+                - (S.tempo - 84) * 0.006 - (S.motion - 35) * 0.004;
   return Math.pow(S.volume / 100, 1.6) * 1.35 * Math.pow(10, clamp(matchDb, -7, 3) / 20);
 };
 
@@ -315,7 +319,10 @@ DW.play = function () {
     this.nextBarT = now + 0.15;
     this.sessionStartT = now + 0.15;
   }
-  if (this.sessionDone) {                 // "session complete" -> fresh arc
+  /* "session complete" -> fresh arc. Deliberate: only the session shape
+     (ramp-in / plateau / wind-down) restarts; the composer keeps its bar
+     stream, so Play continues the same piece under a new session curve. */
+  if (this.sessionDone) {
     this.sessionDone = false;
     this.sessionEnding = false;
     this.sessionEndT = null;
@@ -706,7 +713,9 @@ DW.playPerc = function (t, type, vel) {
 };
 
 /* Session-end chime: two sine partials, ~1.5 s bloom, routed after the
-   session fade so it rings clear over the receding music. */
+   session fade so it rings clear over the receding music. A fixed gentle
+   lowpass (~4 kHz) softens it toward the mix's tone at dark settings —
+   it still deliberately bypasses the master chain. */
 DW.playChime = function (t) {
   const ctx = this.ctx, S = this.S;
   const m = 72 + ((S.root - 0) % 12 + 12) % 12;      // tonic around C5..B5
@@ -720,11 +729,13 @@ DW.playChime = function (t) {
   const o1 = ctx.createOscillator(); o1.frequency.value = f;
   const o2 = ctx.createOscillator(); o2.frequency.value = f * 2.004;
   const o2g = ctx.createGain(); o2g.gain.value = 0.35;
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 4000; lp.Q.value = 0.5;
   o1.connect(g); o2.connect(o2g); o2g.connect(g);
-  g.connect(this.N.analyser);
+  g.connect(lp); lp.connect(this.N.analyser);
   o1.start(t); o2.start(t);
   o1.stop(t + 4.2); o2.stop(t + 4.2);
-  scrap(o1, [g, o2, o2g]);
+  scrap(o1, [g, o2, o2g, lp]);
 };
 
 /* refresh the lookahead promptly when the tab becomes visible again */

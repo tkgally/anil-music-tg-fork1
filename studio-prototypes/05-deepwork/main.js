@@ -100,7 +100,8 @@ function validate(s) {
   num('mixlead', 0, 100); num('mixcounter', 0, 100); num('mixpad', 0, 100);
   num('mixbass', 0, 100); num('mixperc', 0, 100);
   num('reverb', 0, 100); num('echo', 0, 40); num('masterlp', 1200, 12000);
-  s.seed = Math.max(0, Math.floor(Number(s.seed) || todaySeed()));
+  const sd = Math.floor(Number(s.seed));            // 0 is a valid seed — no || fallback
+  s.seed = Number.isFinite(sd) ? Math.max(0, sd) : todaySeed();
   if (!MODES[s.mode]) s.mode = 'dorian';
   if (!METERS[s.meter]) s.meter = '4/4';
   if (!['endless', '25', '50'].includes(s.session)) s.session = 'endless';
@@ -237,6 +238,8 @@ function changed(fromPreset) {
     document.querySelectorAll('#presets .chip').forEach(ch => ch.classList.remove('on'));
   }
   validate(S);
+  const seedEl = $('seed');                          // reflect the validated seed
+  if (seedEl && seedEl.value !== String(S.seed)) seedEl.value = S.seed;
   DW.applyParams(S);
   trackAutoControls();
   renderPmap();
@@ -272,8 +275,9 @@ function wire() {
     });
   }
   $('seed').addEventListener('change', () => {
-    S.seed = Math.max(0, Math.floor(Number($('seed').value) || 0));
-    changed(false);
+    const raw = $('seed').value.trim();              // '' -> today; '0' is a real seed
+    S.seed = raw === '' ? todaySeed() : Number(raw);
+    changed(false);                                  // validate() clamps, then writes back
   });
   $('reroll').addEventListener('click', () => {
     const r = new RNG((Date.now() ^ (performance.now() * 1000)) >>> 0);
@@ -340,7 +344,8 @@ function wire() {
   document.addEventListener('keydown', e => {
     if (e.code !== 'Space') return;
     const t = e.target, tag = t && t.tagName;
-    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    /* SUMMARY: let Space open/close the Advanced disclosure, not toggle playback */
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'SUMMARY') return;
     if (t !== playBtn && tag === 'BUTTON') return;
     e.preventDefault();
     toggle();
@@ -422,6 +427,8 @@ setInterval(() => { if (!document.hidden) { updateStatus(); trackAutoControls();
 /* ----- piano-roll ribbon: notes scroll left, playhead fixed ----- */
 const canvas = $('viz');
 const cx2d = canvas.getContext('2d');
+/* roundRect needs Chrome 99+/Safari 16+/FF 112+ — square-corner fallback elsewhere */
+if (!cx2d.roundRect) cx2d.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
 let vizW = 0, vizH = 0;
 
 function sizeCanvas() {
@@ -433,7 +440,10 @@ function sizeCanvas() {
 }
 window.addEventListener('resize', () => { sizeCanvas(); drawViz(); });
 
-const PAST = 31, FUT = 14;                       // ~45 s window
+/* ~45 s window. Deliberate deviation from the spec's centered playhead:
+   sitting at ~69% width shows more history than future, which reads better
+   for a piece you're half-listening to (the future is a short preview). */
+const PAST = 31, FUT = 14;
 const VOICE_STYLE = {
   pad:     { color: '111,159,216', alpha: 0.10, h: 9 },
   lead:    { color: '159,196,239', alpha: 0.75, h: 3 },
