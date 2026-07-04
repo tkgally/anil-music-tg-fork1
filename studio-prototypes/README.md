@@ -134,6 +134,21 @@ design (the details are worth discussing on the call):
   quiet (≈ −22 dBFS RMS) and the volume slider is always visible.
 - **Habituation erodes benefits** of any fixed piece → generative variety
   within a stable style; the date-seed gives a fresh-but-stable palette daily.
+- **The delivery layer matters as much as the notes.** At quiet listening
+  levels the ear loses bass and treble (equal-loudness contours), so a mix
+  tuned loud sounds thin when played soft — every prototype adds a gentle
+  bass/treble tilt as the volume slider falls. Presets are level-matched
+  (±1.5 dB) so nobody "prefers" a preset for being louder. And since coders
+  listen on headphones, nothing is statically hard-panned. For an all-day
+  product, hearing dose is real: WHO's safe-listening line (~80 dB for
+  40 h/week) is exactly the exposure profile of someone who codes to music —
+  another argument for the quiet default and for session breaks.
+- **What's culture-robust vs culture-specific.** The structural rules
+  (predictability, no lyrics, slow evolution, steady spectra, low-register
+  roughness avoidance) travel across cultures; chord *vocabulary* (lo-fi's
+  maj7/m9 grammar, major-key warmth) is a learned aesthetic. Worth remembering
+  for an international audience: the texture-first prototypes (01/02) lean on
+  the universal layer, the genre prototype (04) on the learned one.
 - Product landscape: every successful tool is "pick a mode, press play, one
   intensity knob"; every surviving mixer hides itself behind presets. The
   two-level design follows directly. (`musicforprogramming.net`'s curation
@@ -174,6 +189,12 @@ node studio-prototypes/tools/verify.mjs studio-prototypes/01-tides 30
 - **Session shapes** (25/50-min arcs, wind-down chime) — cheap to add to any
   engine, and the product research says timers are table stakes in this
   category.
+- **Interruption behavior** (not built here): what should the music do when a
+  video call grabs the tab's audio focus, or a notification fires? A
+  duck-and-recover pattern, and a considered "re-entry" after pauses, are open
+  design questions a real product would need. Likewise loudness metering
+  (LUFS-style) inside the engine so *generated* output is level-managed the
+  way mastered releases are.
 
 ## Repo notes
 
