@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 · Dust — lo-fi beats to code to</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="head-row">
+      <h1>04 · Dust</h1>
+      <a class="hub" href="../index.html">&larr; all five prototypes</a>
+    </div>
+    <p class="concept">The coffee-shop classic, fully synthesized: a lazy swung beat,
+    dark jazz chords under a wool blanket, vinyl crackle and rain — and no melody
+    to hook your ear (unless you ask for one).</p>
+  </header>
+
+  <section class="panel transport" aria-label="transport">
+    <button id="play" data-play aria-pressed="false" aria-label="play or pause" title="play / pause (space)">
+      <svg id="icon-play" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+        <path d="M8 5.5v13l11-6.5z" fill="currentColor"/>
+      </svg>
+      <svg id="icon-pause" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" style="display:none">
+        <path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z" fill="currentColor"/>
+      </svg>
+    </button>
+    <div class="clock" id="clock" aria-label="elapsed time">0:00</div>
+    <div class="vol">
+      <label for="volume">volume <output id="volume-out">70</output></label>
+      <input type="range" id="volume" min="0" max="100" value="70" step="1">
+    </div>
+  </section>
+
+  <canvas id="viz" height="160" aria-label="spinning record visualization"></canvas>
+  <div class="status" id="status">press play — needle down</div>
+
+  <section class="panel" aria-label="simple controls">
+    <div class="chips" id="presets" role="group" aria-label="presets">
+      <button class="chip" data-preset="3am">3 AM</button>
+      <button class="chip" data-preset="cafe">Caf&eacute;</button>
+      <button class="chip" data-preset="tape">Tape deck</button>
+      <button class="chip" data-preset="sunday">Sunday</button>
+    </div>
+
+    <div class="ctl hero">
+      <label for="dust">Dust <output id="dust-out"></output></label>
+      <div class="desc">how worn the record is — crackle, hiss, tape wobble, and a darker tone</div>
+      <input type="range" id="dust" min="0" max="100" step="1">
+    </div>
+
+    <div class="controls">
+      <div class="ctl">
+        <label for="tempo">Tempo <output id="tempo-out"></output></label>
+        <div class="desc">how lazy the beat is (takes effect next bar)</div>
+        <input type="range" id="tempo" min="62" max="92" step="1">
+      </div>
+      <div class="ctl">
+        <label for="groove">Groove <output id="groove-out"></output></label>
+        <div class="desc">how much the drums lean in — hats, ghost notes, swing</div>
+        <input type="range" id="groove" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="rain">Rain <output id="rain-out"></output></label>
+        <div class="desc">window weather behind everything</div>
+        <input type="range" id="rain" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label>Chords</label>
+        <div class="desc">the four-chord loop (applies at the next loop)</div>
+        <div class="chips" id="progs" role="group" aria-label="chord set">
+          <button class="chip" data-prog="attic">Attic</button>
+          <button class="chip" data-prog="rainy">Rainy</button>
+          <button class="chip" data-prog="sunday">Sunday</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <details class="advanced panel">
+    <summary>Advanced</summary>
+
+    <div class="group-h">Harmony &amp; melody</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="key">Key</label>
+        <div class="desc">root of the progression (applies at the next loop)</div>
+        <select id="key"></select>
+      </div>
+      <div class="ctl">
+        <label for="melody">Melody <output id="melody-out"></output></label>
+        <div class="desc">a rare two-note answer phrase every 4th bar — 0 keeps it off</div>
+        <input type="range" id="melody" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="melcap">Melody ceiling <output id="melcap-out"></output></label>
+        <div class="desc">highest note the phrase may touch</div>
+        <input type="range" id="melcap" min="64" max="79" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Groove engine</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="swing">Swing <output id="swing-out"></output></label>
+        <div class="desc">where the off-eighths fall — 50% straight, 66% triplet</div>
+        <input type="range" id="swing" min="50" max="66" step="0.5">
+      </div>
+      <div class="ctl">
+        <label for="backbeat">Backbeat</label>
+        <div class="desc">what taps on 2 and 4</div>
+        <select id="backbeat">
+          <option value="rim">rim</option>
+          <option value="snare">snare</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label for="hatd">Hat density <output id="hatd-out"></output></label>
+        <div class="desc">how many hat ticks survive the shuffle</div>
+        <input type="range" id="hatd" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="anticip">Anticipation <output id="anticip-out"></output></label>
+        <div class="desc">chance a chord arrives early, on the and-of-4</div>
+        <input type="range" id="anticip" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="varbars">Variation rate <output id="varbars-out"></output></label>
+        <div class="desc">bars between re-rolls of the drum pattern's small details</div>
+        <input type="range" id="varbars" min="2" max="16" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Mixer</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="kicklvl">Kick <output id="kicklvl-out"></output></label>
+        <div class="desc">the soft thump on one</div>
+        <input type="range" id="kicklvl" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="bblvl">Backbeat <output id="bblvl-out"></output></label>
+        <div class="desc">rim or snare on 2 and 4</div>
+        <input type="range" id="bblvl" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="hatlvl">Hats <output id="hatlvl-out"></output></label>
+        <div class="desc">the swung eighth ticks</div>
+        <input type="range" id="hatlvl" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="basslvl">Bass <output id="basslvl-out"></output></label>
+        <div class="desc">root notes under the loop</div>
+        <input type="range" id="basslvl" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="keyslvl">Keys <output id="keyslvl-out"></output></label>
+        <div class="desc">the Rhodes chords</div>
+        <input type="range" id="keyslvl" min="0" max="100" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Tape &amp; texture</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="sidechain">Sidechain <output id="sidechain-out"></output></label>
+        <div class="desc">how much the kick ducks keys and texture</div>
+        <input type="range" id="sidechain" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="wobrate">Wobble rate <output id="wobrate-out"></output></label>
+        <div class="desc">wow speed — the slow pitch sag of the turntable</div>
+        <input type="range" id="wobrate" min="0.2" max="1.5" step="0.05">
+      </div>
+      <div class="ctl">
+        <label for="wobdepth">Wobble depth <output id="wobdepth-out"></output></label>
+        <div class="desc">how seasick the tape is (scaled by Dust)</div>
+        <input type="range" id="wobdepth" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="crackle">Crackle density <output id="crackle-out"></output></label>
+        <div class="desc">pops per second on the vinyl surface (level rides Dust)</div>
+        <input type="range" id="crackle" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="masterlp">Master lowpass <output id="masterlp-out"></output></label>
+        <div class="desc">master tone before Dust darkens it further</div>
+        <input type="range" id="masterlp" min="2000" max="9000" step="50">
+      </div>
+    </div>
+
+    <div class="group-h">Space &amp; seed</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="reverb">Reverb mix <output id="reverb-out"></output></label>
+        <div class="desc">a small dark room around the keys and the rim</div>
+        <input type="range" id="reverb" min="0" max="100" step="1">
+      </div>
+      <div class="ctl seedrow">
+        <label for="seed">Seed</label>
+        <div class="desc">same seed = same piece; defaults to today's date</div>
+        <div class="seedline">
+          <input type="number" id="seed" min="0" step="1">
+          <button id="reroll" class="chip" title="reroll seed" aria-label="reroll seed">&#10226;</button>
+          <button id="reset" class="chip" title="reset all settings">reset to defaults</button>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <footer>space = play/pause · all settings apply live (tempo at the next bar, chords &amp; key at the next loop) · runs entirely in your browser</footer>
+</div>
+
+<script src="engine.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

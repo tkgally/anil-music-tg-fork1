@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03 · Pulse — patterns that evolve one note at a time</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="head-row">
+      <h1>03 · Pulse</h1>
+      <a class="hub" href="../index.html">&larr; all five prototypes</a>
+    </div>
+    <p class="concept">A soft clockwork: one repeating pattern, played by warm keys
+    and their echo-canon, that rewrites itself one note at a time — you never catch
+    it changing, but half an hour later it's somewhere new.</p>
+  </header>
+
+  <section class="panel transport" aria-label="transport">
+    <button id="play" data-play aria-pressed="false" aria-label="play or pause" title="play / pause (space)">
+      <svg id="icon-play" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+        <path d="M8 5.5v13l11-6.5z" fill="currentColor"/>
+      </svg>
+      <svg id="icon-pause" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" style="display:none">
+        <path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z" fill="currentColor"/>
+      </svg>
+    </button>
+    <div class="clock" id="clock" aria-label="elapsed time">0:00</div>
+    <div class="vol">
+      <label for="volume">volume <output id="volume-out">70</output></label>
+      <input type="range" id="volume" min="0" max="100" value="70" step="1">
+    </div>
+  </section>
+
+  <canvas id="viz" height="180" aria-label="step ring visualization"></canvas>
+  <div class="status" id="status">press play — 16 steps, one gentle rewrite at a time</div>
+
+  <section class="panel" aria-label="simple controls">
+    <div class="chips" id="presets" role="group" aria-label="presets">
+      <button class="chip" data-preset="tape">Tape loop</button>
+      <button class="chip" data-preset="clockwork">Clockwork</button>
+      <button class="chip" data-preset="runner">Runner</button>
+      <button class="chip" data-preset="night">Night shift</button>
+    </div>
+
+    <div class="ctl hero">
+      <label id="evolve-label">Evolve</label>
+      <div class="desc">how often the pattern rewrites one of its 16 cells — the status line counts down to each change</div>
+      <div class="chips evolve-chips" id="evolve" role="group" aria-labelledby="evolve-label">
+        <button class="chip" data-ev="off">off</button>
+        <button class="chip" data-ev="gentle">gentle</button>
+        <button class="chip" data-ev="steady">steady</button>
+        <button class="chip" data-ev="restless">restless</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="ctl">
+        <label for="tempo">Tempo <output id="tempo-out"></output></label>
+        <div class="desc">the clockwork's speed (takes effect next loop)</div>
+        <input type="range" id="tempo" min="56" max="104" step="1">
+      </div>
+      <div class="ctl">
+        <label for="energy">Energy <output id="energy-out"></output></label>
+        <div class="desc">how much is going on — note density, touch, canon &amp; tick presence</div>
+        <input type="range" id="energy" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="brightness">Brightness <output id="brightness-out"></output></label>
+        <div class="desc">felt-muted keys &harr; open lid — a master tone control</div>
+        <input type="range" id="brightness" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="pulse">Pulse <output id="pulse-out"></output></label>
+        <div class="desc">the air-tick and the soft loop-start thump — 0 is fully off</div>
+        <input type="range" id="pulse" min="0" max="100" step="1">
+      </div>
+    </div>
+  </section>
+
+  <details class="advanced panel">
+    <summary>Advanced</summary>
+
+    <div class="group-h">Harmony</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="root">Root</label>
+        <div class="desc">key center (takes effect next loop)</div>
+        <select id="root"></select>
+      </div>
+      <div class="ctl">
+        <label for="mode">Mode</label>
+        <div class="desc">color of the scale (takes effect next loop)</div>
+        <select id="mode">
+          <option value="aeolian">aeolian</option>
+          <option value="dorian">dorian</option>
+          <option value="mixolydian">mixolydian</option>
+          <option value="ionian">ionian</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label id="chordset-label">Chord cycle</label>
+        <div class="desc">the four chords bass &amp; haze walk through</div>
+        <div class="chips" id="chordset" role="group" aria-labelledby="chordset-label">
+          <button class="chip" data-cs="dusk">Dusk</button>
+          <button class="chip" data-cs="lift">Lift</button>
+          <button class="chip" data-cs="circle">Circle</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <label for="chordrate">Chord change <output id="chordrate-out"></output></label>
+        <div class="desc">loops per chord — larger is slower harmony</div>
+        <input type="range" id="chordrate" min="1" max="4" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Pattern</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="regcenter">Register center <output id="regcenter-out"></output></label>
+        <div class="desc">where the keys sit (MIDI note, next loop)</div>
+        <input type="range" id="regcenter" min="55" max="67" step="1">
+      </div>
+      <div class="ctl">
+        <label for="regspan">Register span <output id="regspan-out"></output></label>
+        <div class="desc">semitones around the center (hard cap at C5)</div>
+        <input type="range" id="regspan" min="5" max="12" step="1">
+      </div>
+      <div class="ctl">
+        <label for="swing">Swing <output id="swing-out"></output></label>
+        <div class="desc">offbeat delay — 0 is machine-straight</div>
+        <input type="range" id="swing" min="0" max="30" step="1">
+      </div>
+      <div class="ctl">
+        <label for="density">Density bias <output id="density-out"></output></label>
+        <div class="desc">nudges the note-count target up or down (evolution drifts toward it)</div>
+        <input type="range" id="density" min="5" max="12" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Evolution</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="wpitch">Re-pitch weight <output id="wpitch-out"></output></label>
+        <div class="desc">mutations that move one note up or down</div>
+        <input type="range" id="wpitch" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="wtoggle">Add/remove weight <output id="wtoggle-out"></output></label>
+        <div class="desc">mutations that fill or empty a cell</div>
+        <input type="range" id="wtoggle" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="wrhythm">Rhythm weight <output id="wrhythm-out"></output></label>
+        <div class="desc">mutations that swap two notes or stretch a sustain</div>
+        <input type="range" id="wrhythm" min="0" max="100" step="1">
+      </div>
+      <div class="ctl checks">
+        <label class="chk"><input type="checkbox" id="freeze"> freeze pattern <span class="hint">(stops evolution)</span></label>
+        <button id="nudge" class="chip" title="apply one mutation immediately">nudge now</button>
+      </div>
+    </div>
+
+    <div class="group-h">Canon</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="canonoff">Canon offset <output id="canonoff-out"></output></label>
+        <div class="desc">steps the echo-voice trails behind the keys</div>
+        <input type="range" id="canonoff" min="2" max="5" step="1">
+      </div>
+      <div class="ctl">
+        <label for="canonlvl">Canon level <output id="canonlvl-out"></output></label>
+        <div class="desc">how present the echo-voice is (also rises with Energy)</div>
+        <input type="range" id="canonlvl" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="canonint">Canon interval</label>
+        <div class="desc">where the echo sings relative to the keys</div>
+        <select id="canonint">
+          <option value="octave">octave down</option>
+          <option value="fifth">fifth down</option>
+          <option value="off">off</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="group-h">Mixer</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="mixkeys">Keys <output id="mixkeys-out"></output></label>
+        <div class="desc">the pattern voice</div>
+        <input type="range" id="mixkeys" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="mixbass">Bass <output id="mixbass-out"></output></label>
+        <div class="desc">the chord root underneath</div>
+        <input type="range" id="mixbass" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="mixhaze">Haze <output id="mixhaze-out"></output></label>
+        <div class="desc">the quiet pad glue that keeps the bed warm</div>
+        <input type="range" id="mixhaze" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="mixtick">Tick <output id="mixtick-out"></output></label>
+        <div class="desc">air-percussion trim (Pulse scales it too)</div>
+        <input type="range" id="mixtick" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="reverb">Reverb mix <output id="reverb-out"></output></label>
+        <div class="desc">how much of everything feeds the room</div>
+        <input type="range" id="reverb" min="0" max="100" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Seed</div>
+    <div class="controls">
+      <div class="ctl seedrow">
+        <label for="seed">Seed</label>
+        <div class="desc">same seed = same starting pattern; defaults to today's date</div>
+        <div class="seedline">
+          <input type="number" id="seed" min="0" step="1">
+          <button id="reroll" class="chip" title="reroll seed" aria-label="reroll seed">&#10226;</button>
+          <button id="reset" class="chip" title="reset all settings">reset to defaults</button>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <footer>space = play/pause · all settings apply live (tempo, harmony &amp; pattern land at the next loop) · runs entirely in your browser</footer>
+</div>
+
+<script src="theory.js"></script>
+<script src="engine.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

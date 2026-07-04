@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 · Deep Work — Daysong, retuned for the background</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="head-row">
+      <h1>05 · Deep Work</h1>
+      <a class="hub" href="../index.html">&larr; all five prototypes</a>
+    </div>
+    <p class="concept">Anil's Daysong engine — same chords, same voices, same motif
+    logic — retuned so the song sits <em>behind</em> your work: one Presence slider
+    folds the whole studio into background &harr; foreground, and a session timer
+    shapes the hour.</p>
+  </header>
+
+  <section class="panel transport" aria-label="transport">
+    <span class="playwrap">
+      <svg class="ring" id="ring" viewBox="0 0 68 68" aria-hidden="true" style="display:none">
+        <circle class="ring-bg" cx="34" cy="34" r="31.5"/>
+        <circle class="ring-fg" id="ring-fg" cx="34" cy="34" r="31.5"/>
+      </svg>
+      <button id="play" data-play aria-pressed="false" aria-label="play or pause" title="play / pause (space)">
+        <svg id="icon-play" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+          <path d="M8 5.5v13l11-6.5z" fill="currentColor"/>
+        </svg>
+        <svg id="icon-pause" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" style="display:none">
+          <path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z" fill="currentColor"/>
+        </svg>
+      </button>
+    </span>
+    <div class="clock" id="clock" aria-label="elapsed time">0:00</div>
+    <div class="vol">
+      <label for="volume">volume <output id="volume-out">70</output></label>
+      <input type="range" id="volume" min="0" max="100" value="70" step="1">
+    </div>
+  </section>
+
+  <canvas id="viz" height="160" aria-label="scrolling piano-roll of the last 45 seconds"></canvas>
+  <div class="status" id="status">press play — Daysong, folded into the background</div>
+
+  <section class="panel" aria-label="simple controls">
+    <div class="chips" id="presets" role="group" aria-label="presets">
+      <button class="chip" data-preset="deep">Deep focus</button>
+      <button class="chip" data-preset="desk">Ambient desk</button>
+      <button class="chip" data-preset="lift">Light lift</button>
+      <button class="chip" data-preset="song">Full song</button>
+    </div>
+
+    <div class="ctl hero">
+      <label for="presence">Presence <output id="presence-out"></output></label>
+      <div class="desc">background &larr; presence &rarr; foreground — one knob that folds the whole
+      studio: melody level &amp; register, counter-line, brightness, echo, percussion gate</div>
+      <input type="range" id="presence" min="0" max="100" step="1">
+      <div class="hero-ends"><span>background</span><span>foreground</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="ctl">
+        <label id="mood-label">Mood</label>
+        <div class="desc">key &amp; color — lands at the next section</div>
+        <div class="chips" id="moods" role="group" aria-labelledby="mood-label">
+          <button class="chip" data-mood="calm">Calm</button>
+          <button class="chip" data-mood="warm">Warm</button>
+          <button class="chip" data-mood="bright">Bright</button>
+          <button class="chip" data-mood="open">Open</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <label for="tempo">Tempo <output id="tempo-out"></output></label>
+        <div class="desc">the song's pulse — takes effect next bar</div>
+        <input type="range" id="tempo" min="56" max="110" step="1">
+      </div>
+      <div class="ctl">
+        <label for="motion">Motion <output id="motion-out"></output></label>
+        <div class="desc">how fast the harmony moves and how short the sections run</div>
+        <input type="range" id="motion" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label id="session-label">Session</label>
+        <div class="desc">timed sessions ramp in, hold a plateau, wind down to a soft chime</div>
+        <div class="chips" id="sessions" role="group" aria-labelledby="session-label">
+          <button class="chip" data-ss="endless">endless</button>
+          <button class="chip" data-ss="25">25 min</button>
+          <button class="chip" data-ss="50">50 min</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <details class="advanced panel">
+    <summary>Advanced</summary>
+
+    <div class="group-h">Essence</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="root">Root</label>
+        <div class="desc">key center — lands at the next section</div>
+        <select id="root"></select>
+      </div>
+      <div class="ctl">
+        <label for="mode">Mode</label>
+        <div class="desc">color of the scale — lands at the next section</div>
+        <select id="mode">
+          <option value="dorian">dorian</option>
+          <option value="aeolian">aeolian</option>
+          <option value="mixolydian">mixolydian</option>
+          <option value="lydian">lydian</option>
+          <option value="ionian">ionian</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label for="meter">Meter</label>
+        <div class="desc">takes effect next bar (the motif re-learns its shape)</div>
+        <select id="meter">
+          <option value="4/4">4/4</option>
+          <option value="3/4">3/4</option>
+        </select>
+      </div>
+      <div class="ctl seedrow">
+        <label for="seed">Seed</label>
+        <div class="desc">same seed = same piece; defaults to today's date</div>
+        <div class="seedline">
+          <input type="number" id="seed" min="0" step="1">
+          <button id="reroll" class="chip" title="reroll seed" aria-label="reroll seed">&#10226;</button>
+          <button id="reset" class="chip" title="reset all settings (clears pins)">reset to defaults</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="group-h">Character</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="complexity">Complexity <output id="complexity-out"></output></label>
+        <div class="desc">rhythmic subdivision, chord variety, seventh chords</div>
+        <input type="range" id="complexity" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="gravity">Gravity <output id="gravity-out"></output></label>
+        <div class="desc">how strongly the melody is pulled back to its center</div>
+        <input type="range" id="gravity" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="shadow">Shadow <output id="shadow-out"></output></label>
+        <div class="desc">borrowed chords &amp; chromatic approach tones</div>
+        <input type="range" id="shadow" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="fractality">Fractality <output id="fractality-out"></output></label>
+        <div class="desc">how much each theme reuses its own motif</div>
+        <input type="range" id="fractality" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="hocket">Hocket <output id="hocket-out"></output></label>
+        <div class="desc">counter-line sings in the melody's silences</div>
+        <input type="range" id="hocket" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="humanity">Humanity <output id="humanity-out"></output></label>
+        <div class="desc">micro-timing, touch and detune looseness</div>
+        <input type="range" id="humanity" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="wanderlust">Wanderlust <output id="wanderlust-out"></output></label>
+        <div class="desc">rare key changes (fifth-down / relative) with a 2-bar pad-only pivot breath</div>
+        <input type="range" id="wanderlust" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="swing">Swing <output id="swing-out"></output></label>
+        <div class="desc">offbeat delay — 0 is straight</div>
+        <input type="range" id="swing" min="0" max="100" step="1">
+      </div>
+    </div>
+
+    <div class="group-h">Ensemble</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="mixlead">Lead <output id="mixlead-out"></output>
+          <button class="pin" id="pin-mixlead" hidden title="pinned — presence no longer drives this; click to release">&#9098;</button></label>
+        <div class="desc">the melody voice — presence drives it until you move the slider (pins it)</div>
+        <input type="range" id="mixlead" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="mixcounter">Counter <output id="mixcounter-out"></output>
+          <button class="pin" id="pin-mixcounter" hidden title="pinned — presence no longer drives this; click to release">&#9098;</button></label>
+        <div class="desc">the second line below the melody — presence-driven until pinned</div>
+        <input type="range" id="mixcounter" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="mixpad">Pad <output id="mixpad-out"></output>
+          <button class="pin" id="pin-mixpad" hidden title="pinned — presence no longer drives this; click to release">&#9098;</button></label>
+        <div class="desc">the bed — the loudest voice here, by design; presence-driven until pinned</div>
+        <input type="range" id="mixpad" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="mixbass">Bass <output id="mixbass-out"></output></label>
+        <div class="desc">roots and fifths underneath</div>
+        <input type="range" id="mixbass" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="mixperc">Percussion <output id="mixperc-out"></output></label>
+        <div class="desc">shaker &amp; soft hat trim — presence opens the gate that lets them in at all</div>
+        <input type="range" id="mixperc" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="leadtimbre">Lead timbre</label>
+        <div class="desc">breath = soft flute · glass = slow FM bell · keys = felt e-piano</div>
+        <select id="leadtimbre">
+          <option value="breath">breath</option>
+          <option value="glass">glass</option>
+          <option value="keys">keys</option>
+        </select>
+      </div>
+      <div class="ctl">
+        <label for="padtimbre">Pad timbre</label>
+        <div class="desc">warm = filtered saws · halo = airy octaves · strings = slow ensemble</div>
+        <select id="padtimbre">
+          <option value="warm">warm</option>
+          <option value="halo">halo</option>
+          <option value="strings">strings</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="group-h">Space</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="reverb">Reverb <output id="reverb-out"></output></label>
+        <div class="desc">how much of everything feeds the 3-second room</div>
+        <input type="range" id="reverb" min="0" max="100" step="1">
+      </div>
+      <div class="ctl">
+        <label for="echo">Echo <output id="echo-out"></output>
+          <button class="pin" id="pin-echo" hidden title="pinned — presence no longer drives this; click to release">&#9098;</button></label>
+        <div class="desc">dotted-eighth repeats on lead &amp; arp — presence-driven until pinned</div>
+        <input type="range" id="echo" min="0" max="40" step="1">
+      </div>
+      <div class="ctl">
+        <label for="masterlp">Master lowpass <output id="masterlp-out"></output>
+          <button class="pin" id="pin-masterlp" hidden title="pinned — presence no longer drives this; click to release">&#9098;</button></label>
+        <div class="desc">the whole mix behind a gauze — presence-driven until pinned</div>
+        <input type="range" id="masterlp" min="1200" max="12000" step="100">
+      </div>
+    </div>
+
+    <div class="group-h">Focus pulse (experimental)</div>
+    <div class="controls">
+      <div class="ctl span2">
+        <div class="chips" id="focus" role="group" aria-label="focus pulse">
+          <button class="chip" data-fp="off">off</button>
+          <button class="chip" data-fp="gentle">gentle</button>
+          <button class="chip" data-fp="stronger">stronger</button>
+        </div>
+        <div class="desc">Steady 16&nbsp;Hz amplitude modulation on the pad+bass bed, modeled on
+        Brain.fm's approach; evidence is mixed and strongest for listeners with attention
+        difficulties. Try it — some people love it, some can't stand it. It ramps in over
+        30&nbsp;s; the rate and phase never change (predictable modulation entrains,
+        irregular modulation distracts).</div>
+      </div>
+    </div>
+
+    <div class="group-h">Presence map — the fold, live</div>
+    <p class="pmap-note">what the Presence macro is deriving right now. Move the matching
+    Ensemble/Space control to pin (&#9098;) a value — presence stops driving it until you
+    release the pin or reset.</p>
+    <div class="pmap-scroll"><table class="pmap" id="pmap"></table></div>
+  </details>
+
+  <footer>space = play/pause · all settings apply live (mood &amp; key land at the next
+  section; tempo, meter &amp; seed at the next bar) · runs entirely in your browser</footer>
+</div>
+
+<script src="theory.js"></script>
+<script src="composer.js"></script>
+<script src="engine.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

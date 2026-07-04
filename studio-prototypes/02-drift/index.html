@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 · Drift</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="hublink" href="../index.html">&larr; all five prototypes</a>
+    <h1>02 · Drift</h1>
+    <p class="concept">A handful of soft tones, each repeating on its own slow clock — the loops
+    drift in and out of phase, so the music repeats forever yet never quite the same way.</p>
+  </header>
+
+  <section class="panel transport" aria-label="transport">
+    <button id="play" data-play aria-pressed="false" aria-label="play">
+      <svg id="icoPlay" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>
+      <svg id="icoPause" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="display:none"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+    </button>
+    <div class="time" id="time" aria-label="elapsed time">0:00</div>
+    <div class="ctl vol">
+      <label for="vol">Volume <output id="volV">70</output></label>
+      <input type="range" id="vol" min="0" max="100" value="70">
+    </div>
+  </section>
+
+  <section class="panel vizpanel" aria-label="visualization">
+    <canvas id="viz" height="180" aria-hidden="true"></canvas>
+    <p class="status" id="status">6 loops · press play</p>
+  </section>
+
+  <section class="panel simple" aria-label="simple controls">
+    <div class="chips" id="chips" role="group" aria-label="palette presets"></div>
+    <p class="desc-l">Palettes — each picks a key, a timbre and a pace neighborhood for the whole system.</p>
+
+    <div class="ctl headline">
+      <label for="pace">Pace <output id="paceV">50</output></label>
+      <input type="range" id="pace" min="0" max="100" value="50">
+      <p class="desc">Stretches every loop's period — left is slower, right more flowing. Lands at each loop's next pass.</p>
+    </div>
+
+    <div class="controls">
+      <div class="ctl">
+        <label for="layers">Layers <output id="layersV">6</output></label>
+        <input type="range" id="layers" min="3" max="8" value="6">
+        <p class="desc">How many loops are running.</p>
+      </div>
+      <div class="ctl">
+        <label for="warm">Warmth <output id="warmV">60</output></label>
+        <input type="range" id="warm" min="0" max="100" value="60">
+        <p class="desc">Tone tilt, bright &harr; warm — higher is darker.</p>
+      </div>
+      <div class="ctl">
+        <label for="air">Air <output id="airV">12</output></label>
+        <input type="range" id="air" min="0" max="100" value="12">
+        <p class="desc">A faint breath of filtered noise behind the loops.</p>
+      </div>
+    </div>
+  </section>
+
+  <details class="advanced panel">
+    <summary>Advanced</summary>
+
+    <div class="group-h">The loops</div>
+    <div class="tscroll">
+      <table id="ltable">
+        <thead><tr><th></th><th>note</th><th>period s</th><th>level</th><th>pan</th><th>mute</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="lbtns">
+      <button class="chip" id="addLayer">+ layer</button>
+      <button class="chip" id="rerollLayout" title="new seeded periods, phases and pitches">reroll layout ⟲</button>
+      <button class="chip" id="nudge" title="re-randomize phases only">nudge phases</button>
+    </div>
+    <p class="desc-l">Each row is one loop: its pitch, how often it plays, how loud, and where it sits.
+    Pitch and period edits land at that loop's next pass — nothing restarts.</p>
+
+    <div class="group-h">Tone</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="timbre">Timbre</label>
+        <select id="timbre">
+          <option value="choir-glass">choir-glass</option>
+          <option value="glass">glass</option>
+          <option value="voices">voices</option>
+        </select>
+        <p class="desc">The voice every loop speaks with. Applies from the next tones.</p>
+      </div>
+      <div class="ctl">
+        <label for="tl">Tone length <output id="tlV">6.0 s</output></label>
+        <input type="range" id="tl" min="3" max="10" step="0.5" value="6">
+        <p class="desc">How long each swell lasts.</p>
+      </div>
+      <div class="ctl">
+        <label for="atk">Attack <output id="atkV">35%</output></label>
+        <input type="range" id="atk" min="10" max="60" step="1" value="35">
+        <p class="desc">Share of the tone spent fading in — a swell, not a note.</p>
+      </div>
+      <div class="ctl ctl-check">
+        <label for="bed">Foundation bed <input type="checkbox" id="bed" checked></label>
+        <p class="desc">Quiet root + fifth drone under the loops, breathing slightly.</p>
+      </div>
+    </div>
+
+    <div class="group-h">Space</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="rs">Reverb size <output id="rsV">4.0 s</output></label>
+        <input type="range" id="rs" min="2" max="6" step="0.5" value="4">
+        <p class="desc">Length of the room's tail.</p>
+      </div>
+      <div class="ctl">
+        <label for="rm">Reverb mix <output id="rmV">50</output></label>
+        <input type="range" id="rm" min="0" max="100" value="50">
+        <p class="desc">How much of the loops feed the room. This piece lives on reverb.</p>
+      </div>
+      <div class="ctl">
+        <label for="ac">Air center <output id="acV">1000 Hz</output></label>
+        <input type="range" id="ac" min="400" max="2000" step="10" value="1000">
+        <p class="desc">Where the air texture sits; it sweeps slowly around this point.</p>
+      </div>
+    </div>
+
+    <div class="group-h">Motion</div>
+    <div class="controls">
+      <div class="ctl ctl-check">
+        <label for="tape">Tape drift <input type="checkbox" id="tape" checked></label>
+        <p class="desc">A small wobble in each pass — the pattern never truly repeats.</p>
+      </div>
+      <div class="ctl">
+        <label for="dd">Drift depth <output id="ddV">50</output></label>
+        <input type="range" id="dd" min="0" max="100" value="50">
+        <p class="desc">How much the tape wobbles: 50 &asymp; &plusmn;1.5% per pass.</p>
+      </div>
+    </div>
+
+    <div class="group-h">Session</div>
+    <div class="controls">
+      <div class="ctl">
+        <label for="seed">Seed</label>
+        <div class="seedrow">
+          <input type="number" id="seed" min="1" max="999999" step="1">
+          <button class="chip" id="reroll" title="reroll seed" aria-label="reroll seed">⟲</button>
+        </div>
+        <p class="desc">Same seed, same piece. Defaults to today's date.</p>
+      </div>
+      <div class="ctl">
+        <label>Defaults</label>
+        <div class="seedrow"><button class="chip" id="reset">reset to defaults</button></div>
+        <p class="desc">Restores every control and clears the saved state.</p>
+      </div>
+    </div>
+  </details>
+
+  <footer>space = play/pause · all settings apply live · runs entirely in your browser<br>
+  structural edits (pitch, period, palette) land at each loop's next pass</footer>
+</div>
+<script src="engine.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
