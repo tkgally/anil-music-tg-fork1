@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Five studio prototypes — background music for working brains</title>
+<style>
+:root{--bg:#101318;--panel:#171b22;--panel2:#1c212b;--text:#cfd6e0;--muted:#7d8794;
+--line:#232a34;--radius:12px;font-size:15px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+line-height:1.55;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:940px;margin:0 auto;padding:40px 20px 60px;}
+h1{font-size:1.7rem;font-weight:650;letter-spacing:.01em;}
+.sub{color:var(--muted);margin-top:8px;max-width:72ch;}
+.sub b{color:var(--text);font-weight:600;}
+h2{font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+margin:38px 0 14px;}
+.cards{display:grid;grid-template-columns:1fr;gap:14px;}
+.card{display:block;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+padding:18px 20px;text-decoration:none;color:var(--text);transition:border-color .15s, transform .15s;}
+.card:hover{border-color:var(--ac);transform:translateX(3px);}
+.card .num{font-variant-numeric:tabular-nums;color:var(--ac);font-weight:650;font-size:.85rem;
+letter-spacing:.1em;}
+.card .name{font-size:1.15rem;font-weight:650;margin:2px 0 4px;color:var(--ac);}
+.card .tag{color:var(--text);margin-bottom:8px;}
+.card .notes{color:var(--muted);font-size:.86rem;max-width:78ch;}
+.card .notes b{color:var(--text);font-weight:600;}
+.spectrum{margin-top:10px;background:var(--panel);border:1px solid var(--line);
+border-radius:var(--radius);padding:18px 20px;}
+.bar{height:8px;border-radius:4px;margin:14px 6px 6px;
+background:linear-gradient(90deg,#4fb8a8,#9d8cff,#6f9fd8,#d9a05b,#c98a9a);}
+.bar-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:.78rem;
+margin:0 6px;}
+.marks{display:flex;justify-content:space-between;margin:2px 6px 0;font-size:.8rem;}
+.marks span{flex:1;text-align:center;}
+.brief{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+padding:18px 20px;}
+.brief ul{margin:8px 0 0 18px;color:var(--muted);font-size:.9rem;}
+.brief li{margin-bottom:7px;max-width:80ch;}
+.brief li b{color:var(--text);font-weight:600;}
+.how{color:var(--muted);font-size:.9rem;max-width:80ch;}
+.how code{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+padding:1px 7px;font-size:.84em;}
+footer{color:var(--muted);font-size:.78rem;margin-top:44px;text-align:center;}
+@media (min-width:760px){.cards{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Five studio prototypes</h1>
+  <p class="sub"><b>Background music for working brains</b> — five different ways to generate,
+  and to let a listener shape, music that stays out of the way while you code. Each folder is
+  fully self-contained (plain HTML/CSS/JS, no libraries, no network): open its
+  <b>index.html</b> straight from disk and press play. Same seed &amp; settings&nbsp;⇒ same music;
+  the URL carries the whole state.</p>
+
+  <h2>The prototypes</h2>
+  <div class="cards">
+    <a class="card" style="--ac:#4fb8a8" href="01-tides/index.html">
+      <div class="num">01</div>
+      <div class="name">Tides — drones that breathe</div>
+      <div class="tag">A just-intoned drone chord over a fixed pedal, swelling like the sea; harmony drifts one voice at a time.</div>
+      <div class="notes"><b>Explores:</b> the zero-melody extreme · wave motion from three slow, unsynced LFOs ·
+      harmonic change as weather (35-second chord glides) · a “voice-masking” texture option.
+      <b>Headline control:</b> Depth (dark&nbsp;↔&nbsp;bright).</div>
+    </a>
+    <a class="card" style="--ac:#9d8cff" href="02-drift/index.html">
+      <div class="num">02</div>
+      <div class="name">Drift — loops out of phase</div>
+      <div class="tag">A few soft tones, each repeating on its own slow clock — Eno’s <i>Music for Airports</i> trick as an editable instrument.</div>
+      <div class="notes"><b>Explores:</b> repetition without staleness (every element repeats; only the alignment evolves) ·
+      a layer table as the “studio” (edit note / period / pan per loop) · a live “pattern repeats in ≈ N days” readout.
+      <b>Headline control:</b> Pace.</div>
+    </a>
+    <a class="card" style="--ac:#d9a05b" href="03-pulse/index.html">
+      <div class="num">03</div>
+      <div class="name">Pulse — patterns that evolve one note at a time</div>
+      <div class="tag">A soft clockwork ostinato, played by warm keys and their octave-down canon, that rewrites itself one cell at a time.</div>
+      <div class="notes"><b>Explores:</b> gradual evolution made literal (one seeded mutation every ~25&nbsp;s — watch it happen in the ring) ·
+      pulse without drums · freeze / nudge controls over the evolution itself.
+      <b>Headline control:</b> Energy.</div>
+    </a>
+    <a class="card" style="--ac:#c98a9a" href="04-dust/index.html">
+      <div class="num">04</div>
+      <div class="name">Dust — lo-fi beats to code to</div>
+      <div class="tag">The coffee-shop classic, fully synthesized: lazy swung drums, dark jazz chords, vinyl crackle and rain — and no melody unless you ask.</div>
+      <div class="notes"><b>Explores:</b> the genre coders actually play · lo-fi as <i>subtraction</i> (lowpass everything, no fills, no hook) ·
+      texture layers (dust, rain) as first-class controls. <b>Headline control:</b> Dust.</div>
+    </a>
+    <a class="card" style="--ac:#6f9fd8" href="05-deepwork/index.html">
+      <div class="num">05</div>
+      <div class="name">Deep Work — Daysong, retuned for the background</div>
+      <div class="tag">Anil’s engine — same chord walk, same voices, same motif logic — folded behind one “presence” slider, with a work-session arc.</div>
+      <div class="notes"><b>Explores:</b> how the existing Daysong parameter space collapses into background&nbsp;↔&nbsp;foreground
+      (the mapping table is shown live in Advanced) · session shapes (25/50&nbsp;min with a wind-down and a soft chime) ·
+      an optional, honestly-labeled 16&nbsp;Hz “focus pulse”. <b>Headline control:</b> Presence.</div>
+    </a>
+  </div>
+
+  <div class="spectrum" style="margin-top:14px">
+    <h2 style="margin:0">Where each sits</h2>
+    <div class="bar"></div>
+    <div class="marks">
+      <span style="color:#4fb8a8">Tides</span><span style="color:#9d8cff">Drift</span>
+      <span style="color:#6f9fd8">Deep Work</span><span style="color:#d9a05b">Pulse</span>
+      <span style="color:#c98a9a">Dust</span>
+    </div>
+    <div class="bar-labels"><span>least stimulating — deep, difficult work</span>
+    <span>more stimulating — routine, automatized work</span></div>
+    <p class="how" style="margin-top:12px">The research is fairly clear that this axis should be
+    the listener’s choice: complex work wants near-textural sound; routine work tolerates (and is
+    often helped by) more rhythm and event density. Deep Work’s <i>presence</i> slider moves along
+    this axis inside a single prototype.</p>
+  </div>
+
+  <h2>The design brief, distilled</h2>
+  <div class="brief">
+    <ul>
+      <li><b>Steady-state beats changing-state.</b> Sound that varies unpredictably from moment to
+      moment (speech, salient melodies, dramatic entrances) reliably captures attention; repetitive,
+      predictable sound does not. So: sustained textures, slow crossfades, high repetition, and
+      evolution in single small steps spaced tens of seconds apart.</li>
+      <li><b>Melody is the risk, register is the multiplier.</b> Isolated high notes read as
+      “deviants” and trigger orienting. Defaults here keep melodic content sparse, soft-attacked,
+      and capped around C5, with the mix centered on bass and midrange.</li>
+      <li><b>No voices, nothing voice-like.</b> Lyrics are the most robust distractor for people
+      who work in language (and code is language). Even vowel-like formant timbres are avoided by
+      default.</li>
+      <li><b>Dynamics breathe, never jump.</b> A few dB of slow swell reads as alive; a sudden
+      level or brightness change reads as an event. Everything here is compressed gently and
+      fades in over seconds.</li>
+      <li><b>Repetition is a feature; surprise is a bug.</b> The brain stops orienting to what it
+      can predict. Each prototype repeats generously and changes one thing at a time — the five
+      differ in <i>what</i> repeats (a drone, a loop, a pattern, a groove, a motif).</li>
+      <li><b>Match stimulation to the task, per listener.</b> Effects differ hugely between people
+      (and tasks); the honest design is a quiet default plus a clearly-labeled way to dial
+      stimulation up or down — not a claim that one setting boosts anyone’s brain.</li>
+    </ul>
+  </div>
+
+  <h2>Trying them</h2>
+  <p class="how">Download the <code>studio-prototypes</code> folder and open any prototype’s
+  <code>index.html</code> in a browser (double-click works — no server, no build, no network).
+  Press play, work for a while, and judge the defaults before touching anything. Then try the
+  presets, then the headline slider, then open <i>Advanced</i>. Every control applies live —
+  there is no “regenerate”. <code>space</code> toggles play. The default seed is today’s date, so
+  everyone hears the same piece on the same day; reroll for a new one, and share the URL to share
+  the exact piece. <code>tools/verify.mjs</code> is the objective “listening test” used while
+  building these (headless-browser metrics: spectral centroid, level stability, onset salience,
+  high-frequency share).</p>
+
+  <footer>studio prototypes · built for the Daysong collaboration · plain Web Audio, no samples, no dependencies</footer>
+</div>
+</body>
+</html>
